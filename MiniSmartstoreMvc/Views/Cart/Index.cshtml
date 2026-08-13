@@ -1,0 +1,411 @@
+﻿@model IEnumerable<MiniSmartstoreMvc.ViewModels.CartItemViewModel>
+
+@{
+    ViewData["Title"] = "Giỏ hàng";
+    var totalAmount = Model.Sum(x => x.TotalPrice);
+}
+
+<div class="container cart-page mt-4">
+    <div class="page-heading mb-4">
+        <h1>Giỏ hàng của bạn</h1>
+        <p>Kiểm tra số lượng sản phẩm trước khi thanh toán</p>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="row">
+            <div class="col-md-8">
+                <div class="cart-card">
+                    <div class="cart-header">
+                        <h5>Sản phẩm trong giỏ</h5>
+                    </div>
+
+                    @foreach (var item in Model)
+                    {
+                        <div class="cart-item"
+                             data-price="@item.UnitPrice"
+                             data-product-id="@item.ProductId">
+                            <div class="cart-product-image">
+                                <img src="@item.Product?.ImageUrl"
+                                     alt="@item.Product?.Name"
+                                     onerror="this.src='/images/products/no-image.jpg'" />
+                            </div>
+
+                            <div class="cart-product-info">
+                                <h5>@item.Product?.Name</h5>
+                                <p>@item.Product?.Category?.Name</p>
+
+                                <div class="cart-price">
+                                    @item.UnitPrice.ToString("N0") đ
+                                </div>
+
+                                <small class="text-muted">
+                                    Còn lại: @item.StockQuantity sản phẩm
+                                </small>
+                            </div>
+
+                            <div class="cart-quantity">
+                                <form asp-controller="Cart"
+                                      asp-action="UpdateQuantity"
+                                      method="post"
+                                      class="quantity-form">
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden" name="productId" value="@item.ProductId" />
+
+                                    <div class="input-group">
+                                        <button type="button"
+                                                class="btn btn-outline-secondary quantity-minus">
+                                            -
+                                        </button>
+
+                                        <input type="number"
+                                               name="quantity"
+                                               value="@item.Quantity"
+                                               min="1"
+                                               max="@item.StockQuantity"
+                                               class="form-control text-center quantity-input"
+                                               data-price="@item.UnitPrice"
+                                               data-stock="@item.StockQuantity" />
+
+                                        <button type="button"
+                                                class="btn btn-outline-secondary quantity-plus">
+                                            +
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="cart-total">
+                                <strong class="line-total">
+                                    @item.TotalPrice.ToString("N0") đ
+                                </strong>
+
+                                <button type="button" class="remove-link border-0 bg-transparent p-0 mt-2 btn-delete-product"
+                                        data-product-id="@item.ProductId"
+                                        data-product-name="@item.Product?.Name"
+                                        data-product-image="@item.Product?.ImageUrl"
+                                        data-product-code="@item.Product?.ProductCode">
+                                    Xóa
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="cart-actions mt-3">
+                    <a asp-controller="Product" asp-action="Index" class="btn btn-outline-primary">
+                        Tiếp tục mua sắm
+                    </a>
+
+                    <button type="button" class="btn btn-outline-danger" id="btnClearCart">
+                        Xóa toàn bộ giỏ hàng
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="order-summary">
+                    <h4>Tóm tắt đơn hàng</h4>
+
+                    <div class="summary-row">
+                        <span>Tạm tính</span>
+                        <strong id="cartSubTotal">@totalAmount.ToString("N0") đ</strong>
+                    </div>
+
+                    <div class="summary-row">
+                        <span>Phí vận chuyển</span>
+                        <strong>Chưa tính</strong>
+                    </div>
+
+                    <div class="summary-row">
+                        <span>Giảm giá</span>
+                        <strong>0 đ</strong>
+                    </div>
+
+                    <hr />
+
+                    <div class="summary-total">
+                        <span>Tổng cộng</span>
+                        <strong id="cartGrandTotal">@totalAmount.ToString("N0") đ</strong>
+                    </div>
+
+                    <a asp-controller="Checkout"
+                       asp-action="BillingAddress"
+                       class="btn btn-primary w-100">
+                        Tiến hành thanh toán
+                    </a>
+
+                    <div class="payment-note mt-3">
+                        <p>Ghi chú:</p>
+                        <ul>
+                            <li>Số lượng không được vượt quá tồn kho.</li>
+                            <li>Giỏ hàng sẽ tự cập nhật khi đổi số lượng.</li>
+                            <li>Chưa đăng nhập vẫn có thể thêm sản phẩm vào giỏ.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="empty-box">
+            <h4>Giỏ hàng của bạn đang trống</h4>
+            <p>Hãy thêm sản phẩm vào giỏ hàng trước khi thanh toán.</p>
+
+            <a asp-controller="Product" asp-action="Index" class="btn btn-primary">
+                Mua sắm ngay
+            </a>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <!-- Delete Product Modal -->
+    <div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
+            <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: hidden;">
+                <!-- Header with gradient background -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 30px 20px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            ⚠️
+                        </div>
+                        <h5 style="margin: 0; color: white; font-size: 18px; font-weight: 600;">Xóa sản phẩm</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Body -->
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 15px; margin-bottom: 20px; line-height: 1.6;">Bạn có chắc muốn xóa sản phẩm sau không? Hành động này không thể hoàn tác.</p>
+
+                    <!-- Product Card -->
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; display: flex; gap: 15px; margin-bottom: 25px; border-left: 4px solid #667eea;">
+                        <div>
+                            <img id="modalProductImage" 
+                                 src="" 
+                                 alt="" 
+                                 onerror="this.src='/images/products/no-image.jpg'"
+                                 style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid #e0e0e0;" />
+                        </div>
+                        <div style="flex-grow: 1;">
+                            <h6 id="modalProductName" style="margin: 0 0 8px 0; font-weight: 600; font-size: 14px; color: #222;"></h6>
+                            <small id="modalProductCode" style="color: #777; font-size: 12px; display: block;"></small>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0;">
+                                <small style="color: #f44336; font-weight: 500;">
+                                    <i class="fas fa-trash-alt" style="margin-right: 5px;"></i>Sẽ bị xóa
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="padding: 20px 30px 30px; display: flex; gap: 10px; justify-content: flex-end; background: #fafafa;">
+                    <button type="button" class="btn" data-bs-dismiss="modal" 
+                            style="background-color: white; color: #666; border: 1px solid #ddd; padding: 10px 24px; border-radius: 6px; font-weight: 500; font-size: 14px; transition: all 0.3s ease; cursor: pointer;"
+                            onmouseover="this.style.background='#f5f5f5'; this.style.borderColor='#bbb';"
+                            onmouseout="this.style.background='white'; this.style.borderColor='#ddd';">
+                        Hủy
+                    </button>
+                    <form id="deleteProductForm" 
+                          asp-controller="Cart" 
+                          asp-action="Remove" 
+                          method="post" 
+                          class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="deleteProductId" name="productId" value="" />
+                        <button type="submit" class="btn" 
+                                style="background: linear-gradient(135deg, #f44336 0%, #e91e63 100%); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);"
+                                onmouseover="this.style.boxShadow='0 6px 16px rgba(244, 67, 54, 0.4)'; this.style.transform='translateY(-2px)';"
+                                onmouseout="this.style.boxShadow='0 4px 12px rgba(244, 67, 54, 0.3)'; this.style.transform='translateY(0)';">
+                            <i class="fas fa-trash-alt me-1"></i>Xác nhận Xóa
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear Cart Modal -->
+    <div class="modal fade" id="clearCartModal" tabindex="-1" aria-labelledby="clearCartModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: hidden;">
+                <!-- Header with gradient background -->
+                <div style="background: linear-gradient(135deg, #f44336 0%, #e91e63 100%); padding: 30px 30px 20px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            🗑️
+                        </div>
+                        <h5 style="margin: 0; color: white; font-size: 18px; font-weight: 600;">Xóa giỏ hàng</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Body -->
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 15px; margin-bottom: 15px; line-height: 1.6;">Bạn có chắc muốn xóa toàn bộ giỏ hàng không?</p>
+                    <div style="background: #ffebee; border-left: 4px solid #f44336; border-radius: 6px; padding: 12px 15px;">
+                        <small style="color: #c62828; display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span><strong>Cảnh báo:</strong> Hành động này không thể hoàn tác.</span>
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="padding: 20px 30px 30px; display: flex; gap: 10px; justify-content: flex-end; background: #fafafa;">
+                    <button type="button" class="btn" data-bs-dismiss="modal" 
+                            style="background-color: white; color: #666; border: 1px solid #ddd; padding: 10px 24px; border-radius: 6px; font-weight: 500; font-size: 14px; transition: all 0.3s ease; cursor: pointer;"
+                            onmouseover="this.style.background='#f5f5f5'; this.style.borderColor='#bbb';"
+                            onmouseout="this.style.background='white'; this.style.borderColor='#ddd';">
+                        Hủy
+                    </button>
+                    <form id="clearCartForm" 
+                          asp-controller="Cart" 
+                          asp-action="Clear" 
+                          method="post" 
+                          class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn" 
+                                style="background: linear-gradient(135deg, #f44336 0%, #e91e63 100%); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);"
+                                onmouseover="this.style.boxShadow='0 6px 16px rgba(244, 67, 54, 0.4)'; this.style.transform='translateY(-2px)';"
+                                onmouseout="this.style.boxShadow='0 4px 12px rgba(244, 67, 54, 0.3)'; this.style.transform='translateY(0)';">
+                            <i class="fas fa-trash-alt me-1"></i>Xác nhận Xóa
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatCurrency(value) {
+            return new Intl.NumberFormat("vi-VN").format(value) + " đ";
+        }
+
+        function recalculateCart() {
+            let grandTotal = 0;
+
+            document.querySelectorAll(".cart-item").forEach(function (item) {
+                const input = item.querySelector(".quantity-input");
+                const lineTotalElement = item.querySelector(".line-total");
+
+                if (!input || !lineTotalElement) return;
+
+                const price = parseFloat(input.dataset.price) || 0;
+                const quantity = parseInt(input.value) || 1;
+
+                const lineTotal = price * quantity;
+                grandTotal += lineTotal;
+
+                lineTotalElement.textContent = formatCurrency(lineTotal);
+            });
+
+            const subTotal = document.getElementById("cartSubTotal");
+            const grandTotalElement = document.getElementById("cartGrandTotal");
+
+            if (subTotal) {
+                subTotal.textContent = formatCurrency(grandTotal);
+            }
+
+            if (grandTotalElement) {
+                grandTotalElement.textContent = formatCurrency(grandTotal);
+            }
+        }
+
+        document.querySelectorAll(".quantity-form").forEach(function (form) {
+            const input = form.querySelector(".quantity-input");
+            const minusButton = form.querySelector(".quantity-minus");
+            const plusButton = form.querySelector(".quantity-plus");
+
+            if (!input || !minusButton || !plusButton) return;
+
+            let submitTimer;
+
+            function submitWithDelay() {
+                clearTimeout(submitTimer);
+
+                submitTimer = setTimeout(function () {
+                    form.requestSubmit();
+                }, 500);
+            }
+
+            minusButton.addEventListener("click", function () {
+                let value = parseInt(input.value) || 1;
+
+                if (value > 1) {
+                    input.value = value - 1;
+                    recalculateCart();
+                    form.requestSubmit();
+                }
+            });
+
+            plusButton.addEventListener("click", function () {
+                let value = parseInt(input.value) || 1;
+                let stock = parseInt(input.dataset.stock) || 1;
+
+                if (value < stock) {
+                    input.value = value + 1;
+                    recalculateCart();
+                    form.requestSubmit();
+                } else {
+                    alert("Số lượng đã đạt tối đa tồn kho.");
+                }
+            });
+
+            input.addEventListener("input", function () {
+                let value = parseInt(input.value) || 1;
+                let stock = parseInt(input.dataset.stock) || 1;
+
+                if (value < 1) {
+                    input.value = 1;
+                }
+
+                if (value > stock) {
+                    input.value = stock;
+                    alert("Số lượng không được vượt quá tồn kho.");
+                }
+
+                recalculateCart();
+                submitWithDelay();
+            });
+        });
+
+        // Handle delete product button clicks
+        document.querySelectorAll('.btn-delete-product').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const productId = this.dataset.productId;
+                const productName = this.dataset.productName;
+                const productImage = this.dataset.productImage;
+                const productCode = this.dataset.productCode;
+
+                // Populate modal with product details
+                document.getElementById('modalProductName').textContent = productName;
+                document.getElementById('modalProductCode').textContent = productCode || '';
+
+                const imgElement = document.getElementById('modalProductImage');
+                imgElement.src = productImage || '/images/products/no-image.jpg';
+                imgElement.alt = productName;
+
+                // Set the product ID in the hidden input
+                document.getElementById('deleteProductId').value = productId;
+
+                // Show the modal
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteProductModal'));
+                deleteModal.show();
+            });
+        });
+
+        // Handle clear cart button click
+        const btnClearCart = document.getElementById('btnClearCart');
+        if (btnClearCart) {
+            btnClearCart.addEventListener('click', function() {
+                const clearModal = new bootstrap.Modal(document.getElementById('clearCartModal'));
+                clearModal.show();
+            });
+        }
+    </script>
+}
