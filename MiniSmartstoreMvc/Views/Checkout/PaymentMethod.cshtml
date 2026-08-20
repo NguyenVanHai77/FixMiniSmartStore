@@ -43,7 +43,73 @@
                             <p>Nhân viên sẽ liên hệ để xác nhận thông tin chuyển khoản.</p>
                         </div>
                     </label>
+                    @* ===== LƯU Ý: THÔNG TIN QR CHUYỂN KHOẢN ===== *@
+                    <div id="bankTransferQrBox"
+                         class="bank-transfer-qr-box">
 
+                        <div class="bank-transfer-title">
+                            Thông tin chuyển khoản
+                        </div>
+
+                        <div class="bank-transfer-product">
+
+                            <span>Sản phẩm:</span>
+
+                            <strong>
+                                @if (Model.ProductNames.Any())
+                                {
+                                    @string.Join(", ", Model.ProductNames)
+                                }
+                                else
+                                {
+                                    <text>Đơn hàng MiniSmartstore</text>
+                                }
+                            </strong>
+
+                        </div>
+
+                        <div class="bank-transfer-amount">
+
+                            <span>Số tiền cần thanh toán:</span>
+
+                            <strong>
+                                @Model.Total.ToString("N0") đ
+                            </strong>
+
+                        </div>
+
+                        <div class="bank-transfer-qr">
+
+                            <img src="~/images/payment/vietqr.jpg"
+                                 alt="QR chuyển khoản MiniSmartstore" />
+
+                        </div>
+
+                        <div class="bank-transfer-content">
+
+                            <span>Nội dung chuyển khoản</span>
+
+                            <strong>
+                                @if (Model.ProductNames.Any())
+                                {
+                                    @string.Join(", ", Model.ProductNames)
+                                }
+                                else
+                                {
+                                    <text>MiniSmartstore</text>
+                                }
+                                - @Model.Total.ToString("N0")đ
+                            </strong>
+
+                        </div>
+
+                        <div class="bank-transfer-note">
+                            Vui lòng chuyển đúng số tiền và nội dung để cửa hàng
+                            dễ dàng xác nhận đơn hàng.
+                        </div>
+
+                    </div>
+                    @* ===== KẾT THÚC THÔNG TIN QR CHUYỂN KHOẢN ===== *@
                     <label class="checkout-method-item">
                         <input type="radio"
                                name="selectedPaymentMethod"
@@ -70,3 +136,152 @@
         </aside>
     </div>
 </div>
+@* ===== LƯU Ý: GIAO DIỆN QR CHUYỂN KHOẢN ===== *@
+<style>
+
+    .bank-transfer-qr-box {
+        display: none;
+        margin-top: 18px;
+        padding: 24px;
+        border: 1px solid #e5eaf0;
+        border-radius: 12px;
+        background: #fff;
+        text-align: center;
+    }
+
+        .bank-transfer-qr-box.show {
+            display: block;
+        }
+
+    .bank-transfer-title {
+        margin-bottom: 18px;
+        font-size: 20px;
+        font-weight: 900;
+        color: #273142;
+    }
+
+    .bank-transfer-product,
+    .bank-transfer-amount {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-bottom: 8px;
+        font-size: 16px;
+    }
+
+        .bank-transfer-product span,
+        .bank-transfer-amount span {
+            color: #64748b;
+        }
+
+        .bank-transfer-product strong {
+            color: #1e293b;
+        }
+
+        .bank-transfer-amount strong {
+            color: #dc2626;
+            font-size: 20px;
+        }
+
+    .bank-transfer-qr {
+        margin: 20px auto;
+    }
+
+        .bank-transfer-qr img {
+            display: block;
+            width: 330px;
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+
+    .bank-transfer-content {
+        max-width: 520px;
+        margin: 18px auto 0;
+        padding: 14px 18px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 8px;
+        background: #f8fafc;
+    }
+
+        .bank-transfer-content span {
+            display: block;
+            margin-bottom: 5px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .bank-transfer-content strong {
+            display: block;
+            color: #1e293b;
+            font-size: 16px;
+            word-break: break-word;
+        }
+
+    .bank-transfer-note {
+        max-width: 520px;
+        margin: 14px auto 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+</style>
+@* ===== KẾT THÚC GIAO DIỆN QR CHUYỂN KHOẢN ===== *@
+
+@section Scripts {
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            // ===== LƯU Ý: HIỆN QR KHI CHỌN CHUYỂN KHOẢN =====
+            const paymentRadios =
+                document.querySelectorAll(
+                    'input[name="selectedPaymentMethod"]'
+                );
+
+            const bankTransferQrBox =
+                document.getElementById("bankTransferQrBox");
+
+            const bankTransferValue =
+                "@PaymentMethod.BankTransfer";
+
+            function updateBankTransferQr() {
+
+                const selected =
+                    document.querySelector(
+                        'input[name="selectedPaymentMethod"]:checked'
+                    );
+
+                if (!selected || !bankTransferQrBox) {
+                    return;
+                }
+
+                if (selected.value === bankTransferValue) {
+                    bankTransferQrBox.classList.add("show");
+                }
+                else {
+                    bankTransferQrBox.classList.remove("show");
+                }
+            }
+
+            paymentRadios.forEach(function (radio) {
+
+                radio.addEventListener(
+                    "change",
+                    updateBankTransferQr
+                );
+
+            });
+
+            updateBankTransferQr();
+            // ===== KẾT THÚC HIỆN QR KHI CHỌN CHUYỂN KHOẢN =====
+
+        });
+
+    </script>
+
+}

@@ -25,8 +25,22 @@ namespace MiniSmartstoreMvc.Data
                 }
             }
 
-            string adminEmail = "admin@mini.com";
-            string adminPassword = "Admin@123456";
+            // ===== LƯU Ý: LẤY TÀI KHOẢN ADMIN TỪ USER SECRETS =====
+            var configuration =
+                serviceProvider.GetRequiredService<IConfiguration>();
+
+            var adminEmail =
+                configuration["AdminSettings:Email"]
+                ?? throw new InvalidOperationException(
+                    "AdminSettings:Email chưa được cấu hình trong User Secrets."
+                );
+
+            var adminPassword =
+                configuration["AdminSettings:Password"]
+                ?? throw new InvalidOperationException(
+                    "AdminSettings:Password chưa được cấu hình trong User Secrets."
+                );
+            // ===== KẾT THÚC LẤY TÀI KHOẢN ADMIN TỪ USER SECRETS =====
 
             var adminUser = await userManager.FindByEmailAsync(adminEmail);
 

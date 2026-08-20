@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniSmartstoreMvc.Data;
+using MiniSmartstoreMvc.Extensions;
 
 namespace MiniSmartstoreMvc.Controllers
 {
@@ -39,12 +40,16 @@ namespace MiniSmartstoreMvc.Controllers
         public async Task<IActionResult> Index()
         {
             var ids = GetCompareIds();
+            var now = DateTime.Now;
 
+            // ===== LƯU Ý: CHỈ HIỂN THỊ SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN =====
             var products = await _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.ProductColors)
-                .Where(p => ids.Contains(p.Id) && p.IsActive)
+                .AvailableForSale(now)
+                .Where(p => ids.Contains(p.Id))
                 .ToListAsync();
+            // ===== KẾT THÚC CHỈ HIỂN THỊ SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN =====
 
             products = products
                 .OrderBy(p => ids.IndexOf(p.Id))

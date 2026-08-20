@@ -22,13 +22,32 @@ namespace MiniSmartstoreMvc.Areas.Identity.Pages.Account
             _logger = logger;
         }
 
+
         [BindProperty]
         public InputModel Input { get; set; } = new();
 
+
         public string? ReturnUrl { get; set; }
+
+        // ===== LƯU Ý: THÔNG TIN ĐĂNG KÝ TỪ GOOGLE =====
+        public bool IsExternalRegister { get; set; }
+
+        public string ExternalEmail { get; set; }
+            = string.Empty;
+
+        public string ExternalFullName { get; set; }
+            = string.Empty;
+        // ===== KẾT THÚC THÔNG TIN ĐĂNG KÝ TỪ GOOGLE =====
+
+        // ===== LƯU Ý: DANH SÁCH PHƯƠNG THỨC ĐĂNG NHẬP NGOÀI =====
+        public IList<AuthenticationScheme> ExternalLogins { get; set; }
+            = new List<AuthenticationScheme>();
+        // ===== KẾT THÚC DANH SÁCH PHƯƠNG THỨC ĐĂNG NHẬP NGOÀI =====
+
 
         [TempData]
         public string? ErrorMessage { get; set; }
+
 
         public class InputModel
         {
@@ -44,59 +63,133 @@ namespace MiniSmartstoreMvc.Areas.Identity.Pages.Account
             public bool RememberMe { get; set; }
         }
 
-        public async Task OnGetAsync(string? returnUrl = null)
+
+        public async Task OnGetAsync(
+            string? returnUrl = null,
+            bool externalRegister = false)
         {
             if (!string.IsNullOrEmpty(ErrorMessage))
             {
-                ModelState.AddModelError(string.Empty, ErrorMessage);
+                ModelState.AddModelError(
+                    string.Empty,
+                    ErrorMessage
+                );
             }
 
-            returnUrl ??= Url.Content("~/");
 
-            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+            returnUrl ??=
+                Url.Content("~/");
+
+
+            await HttpContext.SignOutAsync(
+                IdentityConstants.ExternalScheme
+            );
+
+
+            // ===== LƯU Ý: LẤY DANH SÁCH ĐĂNG NHẬP NGOÀI =====
+            ExternalLogins =
+                (await _signInManager
+                    .GetExternalAuthenticationSchemesAsync())
+                .ToList();
+            // ===== KẾT THÚC LẤY DANH SÁCH ĐĂNG NHẬP NGOÀI =====
+            // ===== LƯU Ý: NẠP THÔNG TIN GOOGLE CHO PANEL ĐĂNG KÝ =====
+            IsExternalRegister =
+                externalRegister;
+
+            if (IsExternalRegister)
+            {
+                ExternalEmail =
+                    HttpContext.Session.GetString(
+                        "ExternalLogin.Email")
+                    ?? string.Empty;
+
+                ExternalFullName =
+                    HttpContext.Session.GetString(
+                        "ExternalLogin.FullName")
+                    ?? string.Empty;
+            }
+            // ===== KẾT THÚC NẠP THÔNG TIN GOOGLE CHO PANEL ĐĂNG KÝ =====
 
             ReturnUrl = returnUrl;
         }
 
-        public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
+
+        public async Task<IActionResult> OnPostAsync(
+            string? returnUrl = null)
         {
-            returnUrl ??= Url.Content("~/");
+            returnUrl ??=
+                Url.Content("~/");
+
+
+            // ===== LƯU Ý: NẠP LẠI GOOGLE KHI POST BỊ LỖI =====
+            ExternalLogins =
+                (await _signInManager
+                    .GetExternalAuthenticationSchemesAsync())
+                .ToList();
+            // ===== KẾT THÚC NẠP LẠI GOOGLE KHI POST BỊ LỖI =====
+
 
             if (!ModelState.IsValid)
             {
                 ReturnUrl = returnUrl;
+
                 return Page();
             }
 
-            var result = await _signInManager.PasswordSignInAsync(
-                Input.Email,
-                Input.Password,
-                Input.RememberMe,
-                lockoutOnFailure: false
-            );
+
+            var result =
+                await _signInManager
+                    .PasswordSignInAsync(
+                        Input.Email,
+                        Input.Password,
+                        Input.RememberMe,
+                        lockoutOnFailure: false
+                    );
+
 
             if (result.Succeeded)
             {
-                _logger.LogInformation("User logged in.");
-                return LocalRedirect(returnUrl);
+                _logger.LogInformation(
+                    "User logged in."
+                );
+
+                return LocalRedirect(
+                    returnUrl
+                );
             }
+
 
             if (result.RequiresTwoFactor)
             {
-                return RedirectToPage("./LoginWith2fa", new
-                {
-                    ReturnUrl = returnUrl,
-                    RememberMe = Input.RememberMe
-                });
+                return RedirectToPage(
+                    "./LoginWith2fa",
+                    new
+                    {
+                        ReturnUrl = returnUrl,
+                        RememberMe = Input.RememberMe
+                    }
+                );
             }
+
 
             if (result.IsLockedOut)
             {
-                _logger.LogWarning("User account locked out.");
-                return RedirectToPage("./Lockout");
+                _logger.LogWarning(
+                    "User account locked out."
+                );
+
+                return RedirectToPage(
+                    "./Lockout"
+                );
             }
 
-            ModelState.AddModelError(string.Empty, "Email hoặc mật khẩu không đúng.");
+
+            ModelState.AddModelError(
+                string.Empty,
+                "Email hoặc mật khẩu không đúng."
+            );
+
+
             ReturnUrl = returnUrl;
 
             return Page();

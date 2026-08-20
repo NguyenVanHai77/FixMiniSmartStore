@@ -25,12 +25,28 @@
                 </div>
 
                 <div class="admin-category-view-switch">
+
                     <a asp-area="Admin"
                        asp-controller="Category"
                        asp-action="List"
                        class="admin-view-btn active"
                        title="Xem dạng danh sách">
-                        <span class="admin-css-icon admin-icon-list"></span>
+
+                        <span class="category-list-icon" aria-hidden="true">
+                            <span class="category-list-icon-row">
+                                <i></i>
+                                <b></b>
+                            </span>
+                            <span class="category-list-icon-row">
+                                <i></i>
+                                <b></b>
+                            </span>
+                            <span class="category-list-icon-row">
+                                <i></i>
+                                <b></b>
+                            </span>
+                        </span>
+
                     </a>
 
                     <a asp-area="Admin"
@@ -38,8 +54,21 @@
                        asp-action="Tree"
                        class="admin-view-btn"
                        title="Xem dạng cây danh mục">
-                        <span class="admin-css-icon admin-icon-tree"></span>
+
+                        <span class="category-tree-icon" aria-hidden="true">
+                            <span class="tree-top-node"></span>
+                            <span class="tree-stem"></span>
+
+                            <span class="tree-branch tree-branch-left"></span>
+                            <span class="tree-branch tree-branch-right"></span>
+
+                            <span class="tree-node tree-node-left"></span>
+                            <span class="tree-node tree-node-center"></span>
+                            <span class="tree-node tree-node-right"></span>
+                        </span>
+
                     </a>
+
                 </div>
             </div>
         </div>
@@ -203,18 +232,12 @@
                                             Sửa
                                         </a>
 
-                                        <form asp-area="Admin"
-                                              asp-controller="Category"
-                                              asp-action="Delete"
-                                              asp-route-id="@item.Id"
-                                              method="post"
-                                              onsubmit="return confirm('Bạn có chắc muốn xóa danh mục này không? Nếu danh mục đang có sản phẩm hoặc danh mục con thì hệ thống sẽ không cho xóa.');">
-                                            @Html.AntiForgeryToken()
-
-                                            <button type="submit" class="admin-icon-btn danger">
-                                                Xóa
-                                            </button>
-                                        </form>
+                                        <button type="button"
+                                                class="admin-icon-btn danger btn-open-category-delete"
+                                                data-id="@item.Id"
+                                                data-name="@item.Name">
+                                            Xóa
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -315,23 +338,271 @@
     </div>
 </div>
 
+<style>
+    .category-delete-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 20px;
+    }
+
+        .category-delete-overlay.show {
+            display: flex;
+        }
+
+    .category-delete-modal {
+        position: relative;
+        width: 540px;
+        max-width: 100%;
+        background: #fff;
+        border-radius: 6px;
+        padding: 30px 32px 26px;
+        box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25);
+    }
+
+        .category-delete-modal h2 {
+            margin: 0 0 22px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+    .category-delete-question {
+        margin: 0 0 20px;
+        font-size: 16px;
+        color: #555;
+    }
+
+    .category-delete-close {
+        position: absolute;
+        top: 14px;
+        right: 18px;
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: transparent;
+        font-size: 30px;
+        color: #999;
+        cursor: pointer;
+    }
+
+        .category-delete-close:hover {
+            color: #333;
+        }
+
+    .category-delete-info {
+        padding: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #f8fafc;
+        margin-bottom: 16px;
+    }
+
+        .category-delete-info strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #222;
+        }
+
+    .category-delete-count {
+        font-size: 14px;
+        color: #64748b;
+    }
+
+    .category-delete-warning {
+        padding: 12px 14px;
+        margin-bottom: 26px;
+        border-radius: 5px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .category-delete-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .category-delete-actions form {
+            margin: 0;
+        }
+
+    .category-delete-cancel {
+        min-width: 90px;
+        height: 44px;
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        color: #777;
+        cursor: pointer;
+    }
+
+    .category-delete-confirm {
+        min-width: 120px;
+        height: 44px;
+        border: none;
+        border-radius: 3px;
+        background: #ee4d2d;
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .category-delete-confirm:hover {
+            background: #d94325;
+        }
+</style>
+
+<!-- Modal xác nhận xóa danh mục -->
+<div id="categoryDeleteModal" class="category-delete-overlay">
+    <div class="category-delete-modal">
+
+        <button type="button"
+                id="closeCategoryDeleteModal"
+                class="category-delete-close">
+            ×
+        </button>
+
+        <h2>Xóa danh mục</h2>
+
+        <p>Bạn có chắc muốn xóa danh mục này?</p>
+
+        <div class="category-delete-info">
+            <strong id="categoryDeleteName"></strong>
+        </div>
+
+        <div class="category-delete-warning">
+            Lưu ý: Không thể xóa danh mục đang chứa sản phẩm hoặc danh mục con.
+        </div>
+
+        <div class="category-delete-actions">
+
+            <button type="button"
+                    id="cancelCategoryDeleteModal"
+                    class="category-delete-cancel">
+                Hủy
+            </button>
+
+            <form asp-area="Admin"
+                  asp-controller="Category"
+                  asp-action="Delete"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       id="categoryDeleteId"
+                       name="id" />
+
+                <button type="submit"
+                        class="category-delete-confirm">
+                    Xác nhận
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
+
+            // ================================
+            // BỘ LỌC DANH MỤC
+            // ================================
             const toggle = document.getElementById("categoryFilterToggle");
             const panel = document.getElementById("categoryFilterPanel");
 
-            if (!toggle || !panel) return;
+            if (toggle && panel) {
 
-            toggle.addEventListener("click", function () {
-                panel.classList.toggle("is-open");
-            });
+                toggle.addEventListener("click", function () {
+                    panel.classList.toggle("is-open");
+                });
 
-            document.addEventListener("click", function (event) {
-                if (!panel.contains(event.target) && !toggle.contains(event.target)) {
-                    panel.classList.remove("is-open");
-                }
-            });
+                document.addEventListener("click", function (event) {
+                    if (!panel.contains(event.target) &&
+                        !toggle.contains(event.target)) {
+
+                        panel.classList.remove("is-open");
+                    }
+                });
+            }
+
+
+            // ================================
+            // MODAL XÓA DANH MỤC
+            // ================================
+            const categoryDeleteModal =
+                document.getElementById("categoryDeleteModal");
+
+            const categoryDeleteId =
+                document.getElementById("categoryDeleteId");
+
+            const categoryDeleteName =
+                document.getElementById("categoryDeleteName");
+
+            const closeCategoryDeleteModal =
+                document.getElementById("closeCategoryDeleteModal");
+
+            const cancelCategoryDeleteModal =
+                document.getElementById("cancelCategoryDeleteModal");
+
+
+            document.querySelectorAll(".btn-open-category-delete")
+                .forEach(function (button) {
+
+                    button.addEventListener("click", function () {
+
+                        categoryDeleteId.value = this.dataset.id;
+                        categoryDeleteName.textContent = this.dataset.name;
+
+                        categoryDeleteModal.classList.add("show");
+                    });
+
+                });
+
+
+            function hideCategoryDeleteModal() {
+                categoryDeleteModal.classList.remove("show");
+            }
+
+
+            if (closeCategoryDeleteModal) {
+                closeCategoryDeleteModal.addEventListener(
+                    "click",
+                    hideCategoryDeleteModal
+                );
+            }
+
+            if (cancelCategoryDeleteModal) {
+                cancelCategoryDeleteModal.addEventListener(
+                    "click",
+                    hideCategoryDeleteModal
+                );
+            }
+
+
+            if (categoryDeleteModal) {
+                categoryDeleteModal.addEventListener("click", function (event) {
+
+                    if (event.target === categoryDeleteModal) {
+                        hideCategoryDeleteModal();
+                    }
+
+                });
+            }
+
         });
     </script>
 }

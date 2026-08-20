@@ -29,7 +29,7 @@
 
     <input type="hidden" asp-for="ImageUrl" />
 
-    <div asp-validation-summary="ModelOnly" class="apf-validation"></div>
+    <div asp-validation-summary="All" class="apf-validation"></div>
 
     <div class="apf-layout">
         <aside class="apf-sidebar">
@@ -105,7 +105,10 @@
                             <input asp-for="IsActive" />
                             <span></span>
                         </label>
-                        <small>Bật để sản phẩm xuất hiện ngoài shop.</small>
+                        <small>
+                            Bật để cho phép sản phẩm hiển thị ngoài shop.
+                            Thời gian bắt đầu và ngừng bán vẫn được áp dụng.
+                        </small>
                     </div>
                 </div>
 
@@ -419,7 +422,8 @@
                 </div>
 
                 <div class="apf-info">
-                    Nếu sản phẩm không xuất hiện ngoài shop, hãy kiểm tra cả 2 điều kiện: sản phẩm đang hiển thị và danh mục của sản phẩm cũng đang hiển thị.
+                    Nếu sản phẩm không xuất hiện ngoài shop, hãy kiểm tra trạng thái hiển thị,
+                    danh mục và thời gian bắt đầu/ngừng bán của sản phẩm.
                 </div>
             </section>
 

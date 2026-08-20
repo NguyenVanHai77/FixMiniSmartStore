@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniSmartstoreMvc.Data;
+using MiniSmartstoreMvc.Extensions;
 using MiniSmartstoreMvc.Models;
 using MiniSmartstoreMvc.ViewModels;
 
@@ -19,9 +20,13 @@ namespace MiniSmartstoreMvc.Controllers
 
         public async Task<IActionResult> WhatsNew()
         {
+            var now = DateTime.Now;
+
+            // ===== LƯU Ý: CHỈ LẤY SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN =====
             var baseQuery = _context.Products
                 .Include(p => p.Category)
-                .Where(p => p.IsActive);
+                .AvailableForSale(now);
+            // ===== KẾT THÚC CHỈ LẤY SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN =====
 
             var model = new WhatsNewViewModel
             {
@@ -37,7 +42,9 @@ namespace MiniSmartstoreMvc.Controllers
                     .ToListAsync(),
 
                 SaleProducts = await baseQuery
-                    .Where(p => p.OldPrice.HasValue && p.OldPrice.Value > p.Price)
+                    .Where(p =>
+                        p.OldPrice.HasValue &&
+                        p.OldPrice.Value > p.Price)
                     .OrderByDescending(p => p.CreatedAt)
                     .Take(8)
                     .ToListAsync()
@@ -48,16 +55,22 @@ namespace MiniSmartstoreMvc.Controllers
 
         public async Task<IActionResult> RecentlyViewed()
         {
-            var viewedIds = ParseRecentlyViewedIds(Request.Cookies[RecentlyViewedCookieName]);
+            var viewedIds = ParseRecentlyViewedIds(
+                Request.Cookies[RecentlyViewedCookieName]);
 
             var products = new List<Product>();
 
             if (viewedIds.Any())
             {
+                var now = DateTime.Now;
+
+                // ===== LƯU Ý: KHÔNG HIỂN THỊ SẢN PHẨM ĐÃ NGỪNG BÁN TRONG ĐÃ XEM GẦN ĐÂY =====
                 var dbProducts = await _context.Products
                     .Include(p => p.Category)
-                    .Where(p => p.IsActive && viewedIds.Contains(p.Id))
+                    .AvailableForSale(now)
+                    .Where(p => viewedIds.Contains(p.Id))
                     .ToListAsync();
+                // ===== KẾT THÚC KHÔNG HIỂN THỊ SẢN PHẨM ĐÃ NGỪNG BÁN TRONG ĐÃ XEM GẦN ĐÂY =====
 
                 products = viewedIds
                     .Select(id => dbProducts.FirstOrDefault(p => p.Id == id))

@@ -258,7 +258,7 @@ namespace MiniSmartstoreMvc.Areas.Admin.Controllers
             return RedirectToAction(nameof(List));
         }
 
-        [HttpPost("delete/{id:int}")]
+        [HttpPost("delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {

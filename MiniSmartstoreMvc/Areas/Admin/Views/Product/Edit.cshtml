@@ -47,12 +47,9 @@
                     Lưu và tiếp tục sửa
                 </button>
 
-                <button type="submit"
-                        form="productForm"
-                        formaction="@Url.Action("Delete", "Product", new { area = "Admin", id = Model.Id })"
-                        formmethod="post"
-                        class="apf-btn apf-btn-danger"
-                        onclick="return confirm('Bạn có chắc muốn xóa sản phẩm này không? Nếu sản phẩm đã nằm trong đơn hàng, hệ thống sẽ chỉ ẩn sản phẩm.');">
+                <button type="button"
+                        id="openEditProductDeleteModal"
+                        class="apf-btn apf-btn-danger">
                     Xóa
                 </button>
             </div>
@@ -74,7 +71,69 @@
             initAdminProductImagePreview();
             initAdminProductPricePreview();
             initProductImageActionButtons();
+
+            // ===== LƯU Ý: KHỞI TẠO MODAL XÓA SẢN PHẨM =====
+            initEditProductDeleteModal();
+            // ===== KẾT THÚC KHỞI TẠO MODAL XÓA SẢN PHẨM =====
         });
+                // ===== LƯU Ý: XỬ LÝ MODAL XÓA SẢN PHẨM =====
+        function initEditProductDeleteModal() {
+
+            const modal =
+                document.getElementById("editProductDeleteModal");
+
+            const openButton =
+                document.getElementById("openEditProductDeleteModal");
+
+            const closeButton =
+                document.getElementById("closeEditProductDeleteModal");
+
+            const cancelButton =
+                document.getElementById("cancelEditProductDeleteModal");
+
+            if (!modal || !openButton) {
+                return;
+            }
+
+            function showModal() {
+                modal.classList.add("show");
+            }
+
+            function hideModal() {
+                modal.classList.remove("show");
+            }
+
+            openButton.addEventListener(
+                "click",
+                showModal
+            );
+
+            if (closeButton) {
+                closeButton.addEventListener(
+                    "click",
+                    hideModal
+                );
+            }
+
+            if (cancelButton) {
+                cancelButton.addEventListener(
+                    "click",
+                    hideModal
+                );
+            }
+
+            modal.addEventListener(
+                "click",
+                function (event) {
+
+                    if (event.target === modal) {
+                        hideModal();
+                    }
+
+                }
+            );
+        }
+        // ===== KẾT THÚC XỬ LÝ MODAL XÓA SẢN PHẨM =====
         function initProductImageActionButtons() {
             document.querySelectorAll(".js-product-image-action").forEach(function(button) {
                 button.addEventListener("click", function() {
@@ -155,4 +214,218 @@
             update();
         }
     </script>
+
 }
+@* ===== LƯU Ý: MODAL XÁC NHẬN XÓA SẢN PHẨM ===== *@
+
+<style>
+    .product-delete-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 20px;
+    }
+
+        .product-delete-overlay.show {
+            display: flex;
+        }
+
+    .product-delete-modal {
+        position: relative;
+        width: 560px;
+        max-width: 100%;
+        background: #ffffff;
+        border-radius: 6px;
+        padding: 30px 32px 26px;
+        box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25);
+    }
+
+        .product-delete-modal h2 {
+            margin: 0 0 22px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .product-delete-modal p {
+            margin: 0 0 20px;
+            font-size: 16px;
+            color: #555;
+        }
+
+    .product-delete-close {
+        position: absolute;
+        top: 14px;
+        right: 18px;
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: transparent;
+        font-size: 30px;
+        line-height: 30px;
+        color: #999;
+        cursor: pointer;
+    }
+
+        .product-delete-close:hover {
+            color: #333;
+        }
+
+    .product-delete-info {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-height: 90px;
+        margin-bottom: 30px;
+    }
+
+        .product-delete-info img {
+            width: 82px;
+            height: 82px;
+            object-fit: cover;
+            border: 1px solid #e5e5e5;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .product-delete-info strong {
+            display: block;
+            font-size: 17px;
+            font-weight: 600;
+            color: #222;
+            line-height: 1.4;
+        }
+
+    .product-delete-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .product-delete-actions form {
+            margin: 0;
+        }
+
+    .product-delete-cancel {
+        min-width: 90px;
+        height: 44px;
+        padding: 0 18px;
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        color: #777;
+        cursor: pointer;
+    }
+
+        .product-delete-cancel:hover {
+            color: #333;
+            background: #f5f5f5;
+        }
+
+    .product-delete-confirm {
+        min-width: 120px;
+        height: 44px;
+        padding: 0 20px;
+        border: none;
+        border-radius: 3px;
+        background: #ee4d2d;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .product-delete-confirm:hover {
+            background: #d94325;
+        }
+
+    @@media (max-width: 600px) {
+        .product-delete-modal {
+            padding: 24px 20px;
+        }
+
+        .product-delete-info img {
+            width: 70px;
+            height: 70px;
+        }
+
+        .product-delete-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+
+        .product-delete-cancel,
+        .product-delete-confirm {
+            width: 100%;
+        }
+    }
+</style>
+
+
+<div id="editProductDeleteModal"
+     class="product-delete-overlay">
+
+    <div class="product-delete-modal">
+
+        <button type="button"
+                id="closeEditProductDeleteModal"
+                class="product-delete-close">
+            ×
+        </button>
+
+        <h2>Xóa sản phẩm</h2>
+
+        <p>Bạn có chắc muốn xóa sản phẩm sau?</p>
+
+        <div class="product-delete-info">
+
+            <img src="@(string.IsNullOrWhiteSpace(Model.ImageUrl)
+                                         ? "/images/products/no-image.jpg"
+                                         : Model.ImageUrl)"
+                 alt="@Model.Name"
+                 onerror="this.src='/images/products/no-image.jpg'" />
+
+            <div>
+                <strong>@Model.Name</strong>
+            </div>
+
+        </div>
+
+        <div class="product-delete-actions">
+
+            <button type="button"
+                    id="cancelEditProductDeleteModal"
+                    class="product-delete-cancel">
+                Hủy
+            </button>
+
+            <form asp-area="Admin"
+                  asp-controller="Product"
+                  asp-action="Delete"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       name="id"
+                       value="@Model.Id" />
+
+                <button type="submit"
+                        class="product-delete-confirm">
+                    Xác nhận
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+@* ===== KẾT THÚC MODAL XÁC NHẬN XÓA SẢN PHẨM ===== *@

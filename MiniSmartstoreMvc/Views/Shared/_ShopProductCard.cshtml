@@ -55,7 +55,9 @@
 
         <div class="shop-product-delivery">
             <span></span>
-            Giao hàng 3 - 5 ngày
+            Giao hàng @(string.IsNullOrWhiteSpace(Model.DeliveryTime)
+                    ? "3 - 5 ngày"
+                    : Model.DeliveryTime)
         </div>
 
         <div class="shop-product-price-box">

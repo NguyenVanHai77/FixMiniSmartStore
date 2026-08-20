@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniSmartstoreMvc.Data;
+using MiniSmartstoreMvc.Extensions;
 using MiniSmartstoreMvc.Models;
 using MiniSmartstoreMvc.ViewModels;
 
@@ -15,7 +16,9 @@ namespace MiniSmartstoreMvc.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public CartController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public CartController(
+            ApplicationDbContext context,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _userManager = userManager;
@@ -50,7 +53,8 @@ namespace MiniSmartstoreMvc.Controllers
                 return new List<SessionCartItem>();
             }
 
-            return JsonSerializer.Deserialize<List<SessionCartItem>>(json) ?? new List<SessionCartItem>();
+            return JsonSerializer.Deserialize<List<SessionCartItem>>(json)
+                   ?? new List<SessionCartItem>();
         }
 
         private void SaveSessionCart(List<SessionCartItem> cart)
@@ -96,8 +100,15 @@ namespace MiniSmartstoreMvc.Controllers
             {
                 var selectedColor = NormalizeColor(sessionItem.SelectedColor);
 
+                // ===== LƯU Ý: GIỮ SẢN PHẨM ĐÃ CÓ TRONG GIỎ KHI ĐỒNG BỘ SANG TÀI KHOẢN =====
                 var product = await _context.Products
-                    .FirstOrDefaultAsync(p => p.Id == sessionItem.ProductId && p.IsActive);
+                    .FirstOrDefaultAsync(p => p.Id == sessionItem.ProductId);
+
+                if (product == null)
+                {
+                    continue;
+                }
+                // ===== KẾT THÚC GIỮ SẢN PHẨM KHI ĐỒNG BỘ GIỎ =====
 
                 if (product == null || product.StockQuantity <= 0)
                 {
@@ -109,7 +120,7 @@ namespace MiniSmartstoreMvc.Controllers
                     selectedColor = await GetDefaultColorAsync(product.Id);
                 }
 
-                var quantityToAdd = Math.Min(sessionItem.Quantity, product.StockQuantity);
+                var quantityToAdd = Math.Max(1, sessionItem.Quantity);
 
                 var dbCartItem = await _context.CartItems
                     .FirstOrDefaultAsync(c =>
@@ -131,11 +142,7 @@ namespace MiniSmartstoreMvc.Controllers
                 }
                 else
                 {
-                    dbCartItem.Quantity = Math.Min(
-                        dbCartItem.Quantity + quantityToAdd,
-                        product.StockQuantity
-                    );
-
+                    dbCartItem.Quantity += quantityToAdd;
                     dbCartItem.UpdatedAt = now;
                 }
             }
@@ -152,28 +159,39 @@ namespace MiniSmartstoreMvc.Controllers
 
                 var userId = GetUserId();
 
+                // ===== LƯU Ý: GIỮ SẢN PHẨM ĐÃ NGỪNG BÁN TRONG GIỎ ĐỂ KHÁCH CÓ THỂ NHẬN BIẾT VÀ XÓA =====
                 var dbItems = await _context.CartItems
                     .Include(c => c.Product)
                         .ThenInclude(p => p.Category)
                     .Where(c => c.UserId == userId)
                     .ToListAsync();
+                // ===== KẾT THÚC GIỮ SẢN PHẨM ĐÃ NGỪNG BÁN TRONG GIỎ =====
 
-                return dbItems.Select(c => new CartItemViewModel
-                {
-                    ProductId = c.ProductId,
-                    Product = c.Product,
-                    Quantity = c.Quantity,
-                    SelectedColor = c.SelectedColor
-                }).ToList();
+                return dbItems
+                    .Where(c => c.Product != null)
+                    .Select(c => new CartItemViewModel
+                    {
+                        ProductId = c.ProductId,
+                        Product = c.Product,
+                        Quantity = c.Quantity,
+                        SelectedColor = c.SelectedColor
+                    })
+                    .ToList();
             }
 
             var sessionCart = GetSessionCart();
-            var productIds = sessionCart.Select(c => c.ProductId).ToList();
 
+            var productIds = sessionCart
+                .Select(c => c.ProductId)
+                .Distinct()
+                .ToList();
+
+            // ===== LƯU Ý: KHÔNG LỌC THEO THỜI GIAN BÁN KHI CHỈ HIỂN THỊ GIỎ HÀNG =====
             var products = await _context.Products
                 .Include(p => p.Category)
                 .Where(p => productIds.Contains(p.Id))
                 .ToListAsync();
+            // ===== KẾT THÚC KHÔNG LỌC THEO THỜI GIAN BÁN =====
 
             return sessionCart
                 .Select(item => new CartItemViewModel
@@ -193,28 +211,42 @@ namespace MiniSmartstoreMvc.Controllers
             return View(cartItems);
         }
 
-        public async Task<IActionResult> AddToCart(int id, string? selectedColor = null)
+        public async Task<IActionResult> AddToCart(
+            int id,
+            string? selectedColor = null)
         {
             var result = await AddProductToCartAsync(id, selectedColor);
 
             if (!result)
             {
-                return RedirectToAction("Details", "Product", new { id });
+                return RedirectToAction(
+                    "Index",
+                    "Product");
             }
 
             TempData["Success"] = "Đã thêm sản phẩm vào giỏ hàng.";
+
             return RedirectToAction("Index");
         }
 
-        private async Task<bool> AddProductToCartAsync(int id, string? selectedColor)
+        private async Task<bool> AddProductToCartAsync(
+            int id,
+            string? selectedColor)
         {
+            // ===== LƯU Ý: KIỂM TRA SẢN PHẨM CÒN TRONG THỜI GIAN BÁN =====
+            var now = DateTime.Now;
+
             var product = await _context.Products
                 .Include(p => p.ProductColors)
-                .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+                .AvailableForSale(now)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            // ===== KẾT THÚC KIỂM TRA SẢN PHẨM CÒN TRONG THỜI GIAN BÁN =====
 
             if (product == null)
             {
-                TempData["Error"] = "Không tìm thấy sản phẩm.";
+                TempData["Error"] =
+                    "Sản phẩm không tồn tại hoặc đã ngừng bán.";
+
                 return false;
             }
 
@@ -228,11 +260,12 @@ namespace MiniSmartstoreMvc.Controllers
 
             if (selectedColor == null)
             {
-                selectedColor = product.ProductColors.FirstOrDefault()?.ColorName;
+                selectedColor = product.ProductColors
+                    .FirstOrDefault()
+                    ?.ColorName;
+
                 selectedColor = NormalizeColor(selectedColor);
             }
-
-            var now = DateTime.Now;
 
             if (IsLoggedIn())
             {
@@ -262,7 +295,9 @@ namespace MiniSmartstoreMvc.Controllers
                 {
                     if (cartItem.Quantity >= product.StockQuantity)
                     {
-                        TempData["Error"] = "Số lượng trong giỏ đã đạt tối đa tồn kho.";
+                        TempData["Error"] =
+                            "Số lượng trong giỏ đã đạt tối đa tồn kho.";
+
                         return false;
                     }
 
@@ -293,7 +328,9 @@ namespace MiniSmartstoreMvc.Controllers
                 {
                     if (cartItem.Quantity >= product.StockQuantity)
                     {
-                        TempData["Error"] = "Số lượng trong giỏ đã đạt tối đa tồn kho.";
+                        TempData["Error"] =
+                            "Số lượng trong giỏ đã đạt tối đa tồn kho.";
+
                         return false;
                     }
 
@@ -308,7 +345,10 @@ namespace MiniSmartstoreMvc.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddToCartPost(int id, string? selectedColor, int quantity = 1)
+        public async Task<IActionResult> AddToCartPost(
+            int id,
+            string? selectedColor,
+            int quantity = 1)
         {
             if (quantity <= 0)
             {
@@ -317,35 +357,54 @@ namespace MiniSmartstoreMvc.Controllers
 
             selectedColor = NormalizeColor(selectedColor);
 
+            // ===== LƯU Ý: CHẶN THÊM GIỎ KHI SẢN PHẨM ĐÃ NGỪNG BÁN =====
+            var now = DateTime.Now;
+
             var product = await _context.Products
                 .Include(p => p.ProductColors)
-                .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+                .AvailableForSale(now)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            // ===== KẾT THÚC CHẶN THÊM GIỎ KHI SẢN PHẨM ĐÃ NGỪNG BÁN =====
 
             if (product == null)
             {
-                TempData["Error"] = "Không tìm thấy sản phẩm.";
-                return RedirectToAction("Index", "Product");
+                TempData["Error"] =
+                    "Sản phẩm không tồn tại hoặc đã ngừng bán.";
+
+                return RedirectToAction(
+                    "Index",
+                    "Product");
             }
 
             if (product.StockQuantity <= 0)
             {
                 TempData["Error"] = "Sản phẩm đã hết hàng.";
-                return RedirectToAction("Details", "Product", new { id });
+
+                return RedirectToAction(
+                    "Details",
+                    "Product",
+                    new { id });
             }
 
             if (quantity > product.StockQuantity)
             {
-                TempData["Error"] = $"Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {product.StockQuantity}.";
-                return RedirectToAction("Details", "Product", new { id });
+                TempData["Error"] =
+                    $"Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {product.StockQuantity}.";
+
+                return RedirectToAction(
+                    "Details",
+                    "Product",
+                    new { id });
             }
 
             if (selectedColor == null)
             {
-                selectedColor = product.ProductColors.FirstOrDefault()?.ColorName;
+                selectedColor = product.ProductColors
+                    .FirstOrDefault()
+                    ?.ColorName;
+
                 selectedColor = NormalizeColor(selectedColor);
             }
-
-            var now = DateTime.Now;
 
             if (IsLoggedIn())
             {
@@ -375,8 +434,7 @@ namespace MiniSmartstoreMvc.Controllers
                 {
                     cartItem.Quantity = Math.Min(
                         cartItem.Quantity + quantity,
-                        product.StockQuantity
-                    );
+                        product.StockQuantity);
 
                     cartItem.UpdatedAt = now;
                 }
@@ -404,14 +462,14 @@ namespace MiniSmartstoreMvc.Controllers
                 {
                     cartItem.Quantity = Math.Min(
                         cartItem.Quantity + quantity,
-                        product.StockQuantity
-                    );
+                        product.StockQuantity);
                 }
 
                 SaveSessionCart(sessionCart);
             }
 
-            TempData["Success"] = "Đã thêm sản phẩm vào giỏ hàng.";
+            TempData["Success"] =
+                "Đã thêm sản phẩm vào giỏ hàng.";
 
             var referer = Request.Headers["Referer"].ToString();
 
@@ -425,26 +483,41 @@ namespace MiniSmartstoreMvc.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateQuantity(int productId, int quantity, string? selectedColor)
+        public async Task<IActionResult> UpdateQuantity(
+            int productId,
+            int quantity,
+            string? selectedColor)
         {
             selectedColor = NormalizeColor(selectedColor);
 
+            // ===== LƯU Ý: CHẶN CẬP NHẬT SẢN PHẨM ĐÃ NGỪNG BÁN =====
+            var now = DateTime.Now;
+
             var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.Id == productId && p.IsActive);
+                .AvailableForSale(now)
+                .FirstOrDefaultAsync(p => p.Id == productId);
+            // ===== KẾT THÚC CHẶN CẬP NHẬT SẢN PHẨM ĐÃ NGỪNG BÁN =====
 
             if (product == null)
             {
-                return NotFound();
+                TempData["Error"] =
+                    "Sản phẩm không tồn tại hoặc đã ngừng bán.";
+
+                return RedirectToAction("Index");
             }
 
             if (quantity <= 0)
             {
-                return await Remove(productId, selectedColor);
+                return await Remove(
+                    productId,
+                    selectedColor);
             }
 
             if (quantity > product.StockQuantity)
             {
-                TempData["Error"] = $"Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {product.StockQuantity}.";
+                TempData["Error"] =
+                    $"Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {product.StockQuantity}.";
+
                 return RedirectToAction("Index");
             }
 
@@ -464,7 +537,7 @@ namespace MiniSmartstoreMvc.Controllers
                 }
 
                 cartItem.Quantity = quantity;
-                cartItem.UpdatedAt = DateTime.Now;
+                cartItem.UpdatedAt = now;
 
                 await _context.SaveChangesAsync();
             }
@@ -482,16 +555,21 @@ namespace MiniSmartstoreMvc.Controllers
                 }
 
                 cartItem.Quantity = quantity;
+
                 SaveSessionCart(sessionCart);
             }
 
-            TempData["Success"] = "Đã cập nhật giỏ hàng.";
+            TempData["Success"] =
+                "Đã cập nhật giỏ hàng.";
+
             return RedirectToAction("Index");
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Increase(int productId, string? selectedColor)
+        public async Task<IActionResult> Increase(
+            int productId,
+            string? selectedColor)
         {
             selectedColor = NormalizeColor(selectedColor);
 
@@ -506,12 +584,17 @@ namespace MiniSmartstoreMvc.Controllers
                 return NotFound();
             }
 
-            return await UpdateQuantity(productId, item.Quantity + 1, selectedColor);
+            return await UpdateQuantity(
+                productId,
+                item.Quantity + 1,
+                selectedColor);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Decrease(int productId, string? selectedColor)
+        public async Task<IActionResult> Decrease(
+            int productId,
+            string? selectedColor)
         {
             selectedColor = NormalizeColor(selectedColor);
 
@@ -526,18 +609,25 @@ namespace MiniSmartstoreMvc.Controllers
                 return NotFound();
             }
 
-            return await UpdateQuantity(productId, item.Quantity - 1, selectedColor);
+            return await UpdateQuantity(
+                productId,
+                item.Quantity - 1,
+                selectedColor);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Remove(int productId, string? selectedColor = null)
+        public async Task<IActionResult> Remove(
+            int productId,
+            string? selectedColor = null)
         {
             selectedColor = NormalizeColor(selectedColor);
 
             if (productId <= 0)
             {
-                TempData["Error"] = "Sản phẩm không hợp lệ.";
+                TempData["Error"] =
+                    "Sản phẩm không hợp lệ.";
+
                 return RedirectToAction("Index");
             }
 
@@ -554,13 +644,16 @@ namespace MiniSmartstoreMvc.Controllers
                 if (cartItem != null)
                 {
                     _context.CartItems.Remove(cartItem);
+
                     await _context.SaveChangesAsync();
 
-                    TempData["Success"] = "Đã xóa sản phẩm khỏi giỏ hàng.";
+                    TempData["Success"] =
+                        "Đã xóa sản phẩm khỏi giỏ hàng.";
                 }
                 else
                 {
-                    TempData["Error"] = "Không tìm thấy sản phẩm trong giỏ hàng.";
+                    TempData["Error"] =
+                        "Không tìm thấy sản phẩm trong giỏ hàng.";
                 }
             }
             else
@@ -574,13 +667,16 @@ namespace MiniSmartstoreMvc.Controllers
                 if (cartItem != null)
                 {
                     sessionCart.Remove(cartItem);
+
                     SaveSessionCart(sessionCart);
 
-                    TempData["Success"] = "Đã xóa sản phẩm khỏi giỏ hàng.";
+                    TempData["Success"] =
+                        "Đã xóa sản phẩm khỏi giỏ hàng.";
                 }
                 else
                 {
-                    TempData["Error"] = "Không tìm thấy sản phẩm trong giỏ hàng.";
+                    TempData["Error"] =
+                        "Không tìm thấy sản phẩm trong giỏ hàng.";
                 }
             }
 
@@ -600,6 +696,7 @@ namespace MiniSmartstoreMvc.Controllers
                     .ToListAsync();
 
                 _context.CartItems.RemoveRange(cartItems);
+
                 await _context.SaveChangesAsync();
             }
             else
@@ -607,13 +704,18 @@ namespace MiniSmartstoreMvc.Controllers
                 ClearSessionCart();
             }
 
-            TempData["Success"] = "Đã xóa toàn bộ giỏ hàng.";
+            TempData["Success"] =
+                "Đã xóa toàn bộ giỏ hàng.";
+
             return RedirectToAction("Index");
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddToCartAjax(int id, int quantity = 1, string? selectedColor = null)
+        public async Task<IActionResult> AddToCartAjax(
+            int id,
+            int quantity = 1,
+            string? selectedColor = null)
         {
             if (quantity <= 0)
             {
@@ -622,16 +724,21 @@ namespace MiniSmartstoreMvc.Controllers
 
             selectedColor = NormalizeColor(selectedColor);
 
+            // ===== LƯU Ý: CHẶN AJAX THÊM SẢN PHẨM ĐÃ NGỪNG BÁN =====
+            var now = DateTime.Now;
+
             var product = await _context.Products
                 .Include(p => p.ProductColors)
-                .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+                .AvailableForSale(now)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            // ===== KẾT THÚC CHẶN AJAX THÊM SẢN PHẨM ĐÃ NGỪNG BÁN =====
 
             if (product == null)
             {
                 return Json(new
                 {
                     success = false,
-                    message = "Không tìm thấy sản phẩm."
+                    message = "Sản phẩm không tồn tại hoặc đã ngừng bán."
                 });
             }
 
@@ -649,17 +756,19 @@ namespace MiniSmartstoreMvc.Controllers
                 return Json(new
                 {
                     success = false,
-                    message = $"Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {product.StockQuantity}."
+                    message =
+                        $"Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {product.StockQuantity}."
                 });
             }
 
             if (selectedColor == null)
             {
-                selectedColor = product.ProductColors.FirstOrDefault()?.ColorName;
+                selectedColor = product.ProductColors
+                    .FirstOrDefault()
+                    ?.ColorName;
+
                 selectedColor = NormalizeColor(selectedColor);
             }
-
-            var now = DateTime.Now;
 
             if (IsLoggedIn())
             {
@@ -689,8 +798,7 @@ namespace MiniSmartstoreMvc.Controllers
                 {
                     cartItem.Quantity = Math.Min(
                         cartItem.Quantity + quantity,
-                        product.StockQuantity
-                    );
+                        product.StockQuantity);
 
                     cartItem.UpdatedAt = now;
                 }
@@ -718,8 +826,7 @@ namespace MiniSmartstoreMvc.Controllers
                 {
                     cartItem.Quantity = Math.Min(
                         cartItem.Quantity + quantity,
-                        product.StockQuantity
-                    );
+                        product.StockQuantity);
                 }
 
                 SaveSessionCart(sessionCart);
@@ -735,25 +842,35 @@ namespace MiniSmartstoreMvc.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateQuantityAjax(int productId, int quantity, string? selectedColor = null)
+        public async Task<IActionResult> UpdateQuantityAjax(
+            int productId,
+            int quantity,
+            string? selectedColor = null)
         {
             selectedColor = NormalizeColor(selectedColor);
 
+            // ===== LƯU Ý: CHẶN AJAX CẬP NHẬT SẢN PHẨM ĐÃ NGỪNG BÁN =====
+            var now = DateTime.Now;
+
             var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.Id == productId && p.IsActive);
+                .AvailableForSale(now)
+                .FirstOrDefaultAsync(p => p.Id == productId);
+            // ===== KẾT THÚC CHẶN AJAX CẬP NHẬT SẢN PHẨM ĐÃ NGỪNG BÁN =====
 
             if (product == null)
             {
                 return Json(new
                 {
                     success = false,
-                    message = "Không tìm thấy sản phẩm."
+                    message = "Sản phẩm không tồn tại hoặc đã ngừng bán."
                 });
             }
 
             if (quantity <= 0)
             {
-                return await RemoveAjax(productId, selectedColor);
+                return await RemoveAjax(
+                    productId,
+                    selectedColor);
             }
 
             if (quantity > product.StockQuantity)
@@ -761,7 +878,8 @@ namespace MiniSmartstoreMvc.Controllers
                 return Json(new
                 {
                     success = false,
-                    message = $"Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {product.StockQuantity}."
+                    message =
+                        $"Số lượng vượt quá tồn kho. Sản phẩm chỉ còn {product.StockQuantity}."
                 });
             }
 
@@ -770,14 +888,18 @@ namespace MiniSmartstoreMvc.Controllers
                 var userId = GetUserId();
 
                 var cartItemQuery = _context.CartItems
-                    .Where(c => c.UserId == userId && c.ProductId == productId);
+                    .Where(c =>
+                        c.UserId == userId &&
+                        c.ProductId == productId);
 
                 if (selectedColor != null)
                 {
-                    cartItemQuery = cartItemQuery.Where(c => c.SelectedColor == selectedColor);
+                    cartItemQuery = cartItemQuery
+                        .Where(c => c.SelectedColor == selectedColor);
                 }
 
-                var cartItem = await cartItemQuery.FirstOrDefaultAsync();
+                var cartItem = await cartItemQuery
+                    .FirstOrDefaultAsync();
 
                 if (cartItem == null)
                 {
@@ -789,7 +911,7 @@ namespace MiniSmartstoreMvc.Controllers
                 }
 
                 cartItem.Quantity = quantity;
-                cartItem.UpdatedAt = DateTime.Now;
+                cartItem.UpdatedAt = now;
 
                 await _context.SaveChangesAsync();
             }
@@ -799,7 +921,8 @@ namespace MiniSmartstoreMvc.Controllers
 
                 var cartItem = sessionCart.FirstOrDefault(c =>
                     c.ProductId == productId &&
-                    (selectedColor == null || NormalizeColor(c.SelectedColor) == selectedColor));
+                    (selectedColor == null ||
+                     NormalizeColor(c.SelectedColor) == selectedColor));
 
                 if (cartItem == null)
                 {
@@ -811,6 +934,7 @@ namespace MiniSmartstoreMvc.Controllers
                 }
 
                 cartItem.Quantity = quantity;
+
                 SaveSessionCart(sessionCart);
             }
 
@@ -824,7 +948,9 @@ namespace MiniSmartstoreMvc.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RemoveAjax(int productId, string? selectedColor = null)
+        public async Task<IActionResult> RemoveAjax(
+            int productId,
+            string? selectedColor = null)
         {
             selectedColor = NormalizeColor(selectedColor);
 
@@ -833,18 +959,23 @@ namespace MiniSmartstoreMvc.Controllers
                 var userId = GetUserId();
 
                 var cartItemQuery = _context.CartItems
-                    .Where(c => c.UserId == userId && c.ProductId == productId);
+                    .Where(c =>
+                        c.UserId == userId &&
+                        c.ProductId == productId);
 
                 if (selectedColor != null)
                 {
-                    cartItemQuery = cartItemQuery.Where(c => c.SelectedColor == selectedColor);
+                    cartItemQuery = cartItemQuery
+                        .Where(c => c.SelectedColor == selectedColor);
                 }
 
-                var cartItem = await cartItemQuery.FirstOrDefaultAsync();
+                var cartItem = await cartItemQuery
+                    .FirstOrDefaultAsync();
 
                 if (cartItem != null)
                 {
                     _context.CartItems.Remove(cartItem);
+
                     await _context.SaveChangesAsync();
                 }
             }
@@ -854,11 +985,13 @@ namespace MiniSmartstoreMvc.Controllers
 
                 var cartItem = sessionCart.FirstOrDefault(c =>
                     c.ProductId == productId &&
-                    (selectedColor == null || NormalizeColor(c.SelectedColor) == selectedColor));
+                    (selectedColor == null ||
+                     NormalizeColor(c.SelectedColor) == selectedColor));
 
                 if (cartItem != null)
                 {
                     sessionCart.Remove(cartItem);
+
                     SaveSessionCart(sessionCart);
                 }
             }

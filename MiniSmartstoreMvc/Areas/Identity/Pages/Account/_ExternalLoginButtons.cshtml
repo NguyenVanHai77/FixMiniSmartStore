@@ -1,0 +1,49 @@
+﻿@model MiniSmartstoreMvc.ViewModels.ExternalLoginViewModel
+
+@if (Model.Providers != null &&
+     Model.Providers.Count > 0)
+{
+    <div class="auth-google-wrapper">
+
+        <div class="auth-social-divider">
+            <span>
+                Hoặc
+            </span>
+        </div>
+
+
+        <form asp-page="./ExternalLogin"
+              asp-route-returnUrl="@Model.ReturnUrl"
+              method="post"
+              class="auth-google-form">
+
+            @Html.AntiForgeryToken()
+
+
+            @foreach (var provider in Model.Providers)
+            {
+                if (provider.Name.Equals(
+                        "Google",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    <partial name="_GoogleLoginButton"
+                             model="provider" />
+                }
+
+                @*
+                Sau này thêm Microsoft:
+
+                else if (provider.Name.Equals(
+                    "Microsoft",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    <partial name="_MicrosoftLoginButton"
+                             model="provider" />
+                }
+                *@
+            }
+
+        </form>
+
+    </div>
+}

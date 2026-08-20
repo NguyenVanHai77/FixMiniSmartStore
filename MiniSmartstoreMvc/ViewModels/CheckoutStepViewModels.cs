@@ -47,6 +47,9 @@ namespace MiniSmartstoreMvc.ViewModels
         public decimal ShippingFee { get; set; }
 
         public decimal Total => ProductsTotal + ShippingFee;
+        // ===== LƯU Ý: DANH SÁCH TÊN SẢN PHẨM CHUYỂN KHOẢN =====
+        public List<string> ProductNames { get; set; } = new();
+        // ===== KẾT THÚC DANH SÁCH TÊN SẢN PHẨM CHUYỂN KHOẢN =====
     }
 
     public class CheckoutConfirmViewModel

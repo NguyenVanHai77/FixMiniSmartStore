@@ -120,7 +120,20 @@
                     <img id="productDetailMainImage"
                          src="@mainImage"
                          alt="@Model.Name"
+                         class="product-detail-main-image"
+                         onclick="openProductImageModal(this.src)"
                          onerror="this.src='/images/products/no-image.jpg'" />
+                </div>
+                <div id="productImageModal" class="product-image-modal">
+                    <button type="button"
+                            class="product-image-modal-close"
+                            onclick="closeProductImageModal()">
+                        ×
+                    </button>
+
+                    <img id="productImageModalImg"
+                         src=""
+                         alt="Xem ảnh sản phẩm" />
                 </div>
             </div>
         </div>
@@ -534,5 +547,85 @@
                 openProductTab("reviewsTab");
             }
         });
+
+                // ===== PHONG TO ANH SAN PHAM =====
+        function openProductImageModal(imageUrl) {
+            const modal = document.getElementById("productImageModal");
+            const modalImage = document.getElementById("productImageModalImg");
+
+            if (!modal || !modalImage) return;
+
+            modalImage.src = imageUrl;
+            modal.classList.add("show");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeProductImageModal() {
+            const modal = document.getElementById("productImageModal");
+
+            if (!modal) return;
+
+            modal.classList.remove("show");
+            document.body.style.overflow = "";
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const modal = document.getElementById("productImageModal");
+
+            if (!modal) return;
+
+            modal.addEventListener("click", function (event) {
+                if (event.target === modal) {
+                    closeProductImageModal();
+                }
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    closeProductImageModal();
+                }
+            });
+        });
+
+                function openProductImageModal(imageUrl) {
+            const modal = document.getElementById("productImageModal");
+            const modalImage = document.getElementById("productImageModalImg");
+
+            if (!modal || !modalImage) return;
+
+            modalImage.src = imageUrl;
+            modal.classList.add("show");
+
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeProductImageModal() {
+            const modal = document.getElementById("productImageModal");
+
+            if (!modal) return;
+
+            modal.classList.remove("show");
+
+            document.body.style.overflow = "";
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const modal = document.getElementById("productImageModal");
+
+            if (!modal) return;
+
+            modal.addEventListener("click", function (event) {
+                if (event.target === modal) {
+                    closeProductImageModal();
+                }
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    closeProductImageModal();
+                }
+            });
+        });
+
     </script>
 }

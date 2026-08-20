@@ -14,12 +14,28 @@
                 </div>
 
                 <div class="admin-category-view-switch">
+
                     <a asp-area="Admin"
                        asp-controller="Category"
                        asp-action="List"
                        class="admin-view-btn"
                        title="Xem dạng danh sách">
-                        <span class="admin-css-icon admin-icon-list"></span>
+
+                        <span class="category-list-icon" aria-hidden="true">
+                            <span class="category-list-icon-row">
+                                <i></i>
+                                <b></b>
+                            </span>
+                            <span class="category-list-icon-row">
+                                <i></i>
+                                <b></b>
+                            </span>
+                            <span class="category-list-icon-row">
+                                <i></i>
+                                <b></b>
+                            </span>
+                        </span>
+
                     </a>
 
                     <a asp-area="Admin"
@@ -27,8 +43,21 @@
                        asp-action="Tree"
                        class="admin-view-btn active"
                        title="Xem dạng cây danh mục">
-                        <span class="admin-css-icon admin-icon-tree"></span>
+
+                        <span class="category-tree-icon" aria-hidden="true">
+                            <span class="tree-top-node"></span>
+                            <span class="tree-stem"></span>
+
+                            <span class="tree-branch tree-branch-left"></span>
+                            <span class="tree-branch tree-branch-right"></span>
+
+                            <span class="tree-node tree-node-left"></span>
+                            <span class="tree-node tree-node-center"></span>
+                            <span class="tree-node tree-node-right"></span>
+                        </span>
+
                     </a>
+
                 </div>
             </div>
 

@@ -1,0 +1,290 @@
+﻿@page
+@model MiniSmartstoreMvc.Areas.Identity.Pages.Account.VerifyOtpModel
+
+@{
+    ViewData["Title"] = "Xác minh OTP";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+
+    <title>Xác minh OTP - MiniSmartstore</title>
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1" />
+
+    <link rel="stylesheet"
+          href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+
+    <link rel="stylesheet"
+          href="~/css/auth-double.css"
+          asp-append-version="true" />
+
+    <style>
+            .auth-otp-input {
+                width: 100%;
+                border: none;
+                outline: none;
+                background: transparent;
+                text-align: center;
+                font-size: 27px;
+                font-weight: 800;
+                letter-spacing: 12px;
+                padding-left: 12px;
+            }
+
+            .auth-otp-note {
+                margin: 14px 0 18px;
+                text-align: center;
+                color: #7c879a;
+                font-size: 14px;
+            }
+
+            .auth-otp-links {
+                margin-top: 20px;
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .auth-otp-resend-form {
+                margin: 0;
+                padding: 0;
+                width: auto;
+            }
+
+            .auth-otp-link-btn {
+                border: none;
+                background: transparent;
+                color: #2864f0;
+                text-decoration: none;
+                font-weight: 700;
+                padding: 0;
+                cursor: pointer;
+            }
+
+                .auth-otp-link-btn:hover {
+                    text-decoration: underline;
+                }
+
+            .auth-verify-login-btn {
+                width: 230px;
+                height: 58px;
+                padding: 0 !important;
+                border: 2px solid #ffffff;
+                border-radius: 999px;
+                background: transparent;
+                color: #ffffff !important;
+                text-decoration: none !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-size: 17px;
+                font-weight: 800;
+                line-height: 1;
+            }
+
+                .auth-verify-login-btn:hover {
+                    color: #ffffff !important;
+                    text-decoration: none !important;
+                    background: rgba(255, 255, 255, 0.08);
+                }
+    </style>
+</head>
+
+<body class="auth-double-body">
+
+    <div class="auth-back-home">
+        <a asp-area=""
+           asp-controller="Home"
+           asp-action="Index">
+            ← Quay lại trang chủ
+        </a>
+    </div>
+
+
+    <div class="auth-double-container">
+
+        <!-- PHẦN BÊN TRÁI: XÁC MINH OTP -->
+        <div class="auth-form-container auth-sign-in-container">
+
+            <div class="auth-form">
+
+                <form method="post">
+
+                    @Html.AntiForgeryToken()
+
+                    <h1>Xác minh email</h1>
+
+                    <p class="auth-subtitle">
+                        Nhập mã OTP 6 số đã được gửi đến email của bạn.
+                    </p>
+
+
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success">
+                            @TempData["Success"]
+                        </div>
+                    }
+
+
+                    <div asp-validation-summary="ModelOnly"
+                         class="text-danger auth-validation">
+                    </div>
+
+
+                    <label>Mã xác minh</label>
+
+                    <div class="auth-input-group">
+
+                        <input asp-for="Otp"
+                               class="auth-otp-input"
+                               maxlength="6"
+                               inputmode="numeric"
+                               autocomplete="one-time-code"
+                               placeholder="000000" />
+
+                    </div>
+
+                    <span asp-validation-for="Otp"
+                          class="text-danger">
+                    </span>
+
+
+                    <div class="auth-otp-note">
+                        Mã có hiệu lực trong 5 phút.
+                    </div>
+
+
+                    <button type="submit"
+                            class="auth-main-btn">
+                        Xác nhận
+                    </button>
+
+                </form>
+
+
+                <div class="auth-otp-links">
+
+                    <form method="post"
+                          asp-page-handler="Resend"
+                          class="auth-otp-resend-form">
+
+                        @Html.AntiForgeryToken()
+
+                        <button type="submit"
+                                class="auth-otp-link-btn">
+                            Chưa nhận được mã? Gửi lại
+                        </button>
+
+                    </form>
+
+
+                    <a asp-page="./ForgotPassword"
+                       class="auth-otp-link-btn">
+                        Thay đổi email
+                    </a>
+
+
+                    <a asp-page="./Login"
+                       class="auth-otp-link-btn">
+                        Quay lại đăng nhập
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- PHẦN MÀU XANH BÊN PHẢI -->
+        <div class="auth-overlay-container">
+
+            <div class="auth-overlay">
+
+                <div class="auth-overlay-panel auth-overlay-left">
+
+                    <div class="auth-logo-box">
+
+                        <img src="~/images/logo/minismartstore-logo1.png"
+                             asp-append-version="true"
+                             alt="MiniSmartstore"
+                             class="auth-logo-img" />
+
+                        <strong>
+                            MiniSmartstore
+                        </strong>
+
+                    </div>
+
+                    <h1>
+                        Chào mừng trở lại!
+                    </h1>
+
+                    <p>
+                        Nếu bạn đã có tài khoản,
+                        hãy đăng nhập để tiếp tục mua sắm
+                        và quản lý đơn hàng.
+                    </p>
+
+                </div>
+
+
+                <div class="auth-overlay-panel auth-overlay-right">
+
+                    <div class="auth-logo-box">
+
+                        <img src="~/images/logo/minismartstore-logo1.png"
+                             asp-append-version="true"
+                             alt="MiniSmartstore"
+                             class="auth-logo-img" />
+
+                        <strong>
+                            MiniSmartstore
+                        </strong>
+
+                    </div>
+
+
+                    <h1>
+                        Xác minh tài khoản
+                    </h1>
+
+                    <p>
+                        Mã OTP gồm 6 số đã được gửi đến email
+                        bạn vừa cung cấp. Hãy nhập mã để tiếp tục
+                        đặt lại mật khẩu.
+                    </p>
+
+
+                    <a asp-page="./Login"
+                       class="auth-ghost-btn auth-verify-login-btn">
+                        Đăng nhập
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <partial name="_ValidationScriptsPartial" />
+
+</body>
+
+</html>

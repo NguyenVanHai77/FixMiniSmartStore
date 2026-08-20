@@ -139,20 +139,13 @@
                                                     </button>
                                                 </form>
                                             </li>
-
                                             <li>
-                                                <form asp-area="Admin"
-                                                      asp-controller="ProductRule"
-                                                      asp-action="Delete"
-                                                      asp-route-id="@item.Id"
-                                                      method="post"
-                                                      onsubmit="return confirm('Bạn có chắc muốn xóa quy tắc này?')">
-                                                    @Html.AntiForgeryToken()
-
-                                                    <button type="submit" class="dropdown-item text-danger">
-                                                        Xóa quy tắc
-                                                    </button>
-                                                </form>
+                                                <button type="button"
+                                                        class="dropdown-item text-danger btn-open-rule-delete"
+                                                        data-id="@item.Id"
+                                                        data-name="@item.RuleName">
+                                                    Xóa quy tắc
+                                                </button>
                                             </li>
                                         </ul>
                                     </div>
@@ -206,4 +199,218 @@
 
         return "Không xác định";
     }
+}
+
+<style>
+    .rule-delete-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 20px;
+    }
+
+        .rule-delete-overlay.show {
+            display: flex;
+        }
+
+    .rule-delete-modal {
+        position: relative;
+        width: 540px;
+        max-width: 100%;
+        padding: 30px 32px 26px;
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25);
+    }
+
+        .rule-delete-modal h2 {
+            margin: 0 0 22px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .rule-delete-modal p {
+            margin: 0 0 20px;
+            font-size: 16px;
+            color: #555;
+        }
+
+    .rule-delete-close {
+        position: absolute;
+        top: 14px;
+        right: 18px;
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: transparent;
+        font-size: 30px;
+        color: #999;
+        cursor: pointer;
+    }
+
+    .rule-delete-info {
+        padding: 16px;
+        margin-bottom: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #f8fafc;
+    }
+
+    .rule-delete-warning {
+        padding: 12px 14px;
+        margin-bottom: 26px;
+        border-radius: 5px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-size: 14px;
+    }
+
+    .rule-delete-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .rule-delete-actions form {
+            margin: 0;
+        }
+
+    .rule-delete-cancel {
+        min-width: 90px;
+        height: 44px;
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        color: #777;
+        cursor: pointer;
+    }
+
+    .rule-delete-confirm {
+        min-width: 120px;
+        height: 44px;
+        border: none;
+        border-radius: 3px;
+        background: #ee4d2d;
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .rule-delete-confirm:hover {
+            background: #d94325;
+        }
+</style>
+
+<!-- Modal xác nhận xóa quy tắc -->
+<div id="ruleDeleteModal" class="rule-delete-overlay">
+    <div class="rule-delete-modal">
+
+        <button type="button"
+                id="closeRuleDeleteModal"
+                class="rule-delete-close">
+            ×
+        </button>
+
+        <h2>Xóa quy tắc</h2>
+
+        <p>Bạn có chắc muốn xóa quy tắc này?</p>
+
+        <div class="rule-delete-info">
+            <strong id="ruleDeleteName"></strong>
+        </div>
+
+        <div class="rule-delete-warning">
+            Sau khi xóa, quy tắc này sẽ không còn được áp dụng cho sản phẩm.
+        </div>
+
+        <div class="rule-delete-actions">
+
+            <button type="button"
+                    id="cancelRuleDeleteModal"
+                    class="rule-delete-cancel">
+                Hủy
+            </button>
+
+            <form asp-area="Admin"
+                  asp-controller="ProductRule"
+                  asp-action="Delete"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       id="ruleDeleteId"
+                       name="id" />
+
+                <button type="submit"
+                        class="rule-delete-confirm">
+                    Xác nhận
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const ruleDeleteModal =
+            document.getElementById("ruleDeleteModal");
+
+        const ruleDeleteId =
+            document.getElementById("ruleDeleteId");
+
+        const ruleDeleteName =
+            document.getElementById("ruleDeleteName");
+
+        const closeRuleDeleteModal =
+            document.getElementById("closeRuleDeleteModal");
+
+        const cancelRuleDeleteModal =
+            document.getElementById("cancelRuleDeleteModal");
+
+        document.querySelectorAll(".btn-open-rule-delete")
+            .forEach(function (button) {
+
+                button.addEventListener("click", function () {
+                    ruleDeleteId.value = this.dataset.id;
+                    ruleDeleteName.textContent = this.dataset.name;
+
+                    ruleDeleteModal.classList.add("show");
+                });
+            });
+
+        function hideRuleDeleteModal() {
+            ruleDeleteModal.classList.remove("show");
+        }
+
+        if (closeRuleDeleteModal) {
+            closeRuleDeleteModal.addEventListener(
+                "click",
+                hideRuleDeleteModal
+            );
+        }
+
+        if (cancelRuleDeleteModal) {
+            cancelRuleDeleteModal.addEventListener(
+                "click",
+                hideRuleDeleteModal
+            );
+        }
+
+        if (ruleDeleteModal) {
+            ruleDeleteModal.addEventListener("click", function (event) {
+                if (event.target === ruleDeleteModal) {
+                    hideRuleDeleteModal();
+                }
+            });
+        }
+    </script>
 }

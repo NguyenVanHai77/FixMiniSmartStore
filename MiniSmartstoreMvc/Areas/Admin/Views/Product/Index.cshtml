@@ -15,6 +15,7 @@
     var minPrice = ViewBag.MinPrice;
     var maxPrice = ViewBag.MaxPrice;
     var sortBy = ViewBag.SortBy;
+    var now = DateTime.Now;
 }
 
 <div class="admin-product-page">
@@ -64,13 +65,16 @@
                 <span>Thêm mới...</span>
             </a>
 
+            @* ===== LƯU Ý: XÓA CÁC SẢN PHẨM ĐƯỢC CHỌN ===== *@
             <button type="button"
+                    id="deleteSelectedProductsBtn"
                     class="admin-delete-selected-btn"
                     disabled
-                    title="Chưa bật chức năng xóa nhiều sản phẩm">
+                    title="Hãy chọn ít nhất một sản phẩm">
                 <span class="admin-css-icon admin-icon-trash"></span>
                 <span>Xóa mục đã chọn</span>
             </button>
+            @* ===== KẾT THÚC XÓA CÁC SẢN PHẨM ĐƯỢC CHỌN ===== *@
         </div>
 
         <div class="admin-product-manager @(filterOpen ? "filter-open" : "")" id="adminProductManager">
@@ -199,6 +203,25 @@
                             {
                                 foreach (var item in Model)
                                 {
+                                    @* ===== LƯU Ý: PHÂN BIỆT TRẠNG THÁI THỦ CÔNG VÀ THỜI GIAN BÁN ===== *@
+                                    var isManuallyHidden = !item.IsActive;
+
+                                    var isNotStarted =
+                                        item.IsActive &&
+                                        item.AvailableStartDate.HasValue &&
+                                        item.AvailableStartDate.Value > now;
+
+                                    var isEnded =
+                                        item.IsActive &&
+                                        item.AvailableEndDate.HasValue &&
+                                        item.AvailableEndDate.Value <= now;
+
+                                    var isVisibleNow =
+                                        item.IsActive &&
+                                        !isNotStarted &&
+                                        !isEnded;
+                                    @* ===== KẾT THÚC PHÂN BIỆT TRẠNG THÁI ===== *@
+
                                     <tr>
                                         <td>
                                             <input type="checkbox"
@@ -260,16 +283,28 @@
                                         </td>
 
                                         <td class="text-center">
-                                            @if (item.IsActive)
+                                            @if (isManuallyHidden)
                                             {
-                                                <span class="admin-product-status is-on">
-                                                    Hiển thị
+                                                <span class="admin-product-status is-off">
+                                                    Đã ẩn thủ công
+                                                </span>
+                                            }
+                                            else if (isNotStarted)
+                                            {
+                                                <span class="admin-product-status is-off">
+                                                    Chưa tới giờ bán
+                                                </span>
+                                            }
+                                            else if (isEnded)
+                                            {
+                                                <span class="admin-product-status is-off">
+                                                    Đã ngừng bán
                                                 </span>
                                             }
                                             else
                                             {
-                                                <span class="admin-product-status is-off">
-                                                    Đã ẩn
+                                                <span class="admin-product-status is-on">
+                                                    Hiển thị
                                                 </span>
                                             }
                                         </td>
@@ -314,18 +349,13 @@
                                                     </li>
 
                                                     <li>
-                                                        <form asp-area="Admin"
-                                                              asp-controller="Product"
-                                                              asp-action="Delete"
-                                                              asp-route-id="@item.Id"
-                                                              method="post"
-                                                              onsubmit="return confirm('Bạn có chắc muốn xóa sản phẩm này không?');">
-                                                            @Html.AntiForgeryToken()
-
-                                                            <button type="submit" class="dropdown-item text-danger">
-                                                                Xóa sản phẩm
-                                                            </button>
-                                                        </form>
+                                                        <button type="button"
+                                                                class="dropdown-item text-danger btn-open-delete-modal"
+                                                                data-id="@item.Id"
+                                                                data-name="@item.Name"
+                                                                data-image="@item.ImageUrl">
+                                                            Xóa sản phẩm
+                                                        </button>
                                                     </li>
                                                 </ul>
                                             </div>
@@ -471,27 +501,695 @@
     </div>
 </div>
 
+<style>
+    .product-delete-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 20px;
+    }
+
+        .product-delete-overlay.show {
+            display: flex;
+        }
+
+    .product-delete-modal {
+        position: relative;
+        width: 560px;
+        max-width: 100%;
+        background: #ffffff;
+        border-radius: 6px;
+        padding: 30px 32px 26px;
+        box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25);
+    }
+
+        .product-delete-modal h2 {
+            margin: 0 0 22px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .product-delete-modal p {
+            margin: 0 0 20px;
+            font-size: 16px;
+            color: #555;
+        }
+
+    .product-delete-close {
+        position: absolute;
+        top: 14px;
+        right: 18px;
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: transparent;
+        font-size: 30px;
+        line-height: 30px;
+        color: #999;
+        cursor: pointer;
+    }
+
+        .product-delete-close:hover {
+            color: #333;
+        }
+
+    .product-delete-info {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-height: 90px;
+        margin-bottom: 30px;
+    }
+
+        .product-delete-info img {
+            width: 82px;
+            height: 82px;
+            object-fit: cover;
+            border: 1px solid #e5e5e5;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .product-delete-info strong {
+            display: block;
+            font-size: 17px;
+            font-weight: 600;
+            color: #222;
+            line-height: 1.4;
+        }
+
+    .product-delete-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .product-delete-actions form {
+            margin: 0;
+        }
+
+    .product-delete-cancel {
+        min-width: 90px;
+        height: 44px;
+        padding: 0 18px;
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        color: #777;
+        cursor: pointer;
+    }
+
+        .product-delete-cancel:hover {
+            color: #333;
+            background: #f5f5f5;
+        }
+
+    .product-delete-confirm {
+        min-width: 120px;
+        height: 44px;
+        padding: 0 20px;
+        border: none;
+        border-radius: 3px;
+        background: #ee4d2d;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .product-delete-confirm:hover {
+            background: #d94325;
+        }
+
+    @@media (max-width: 600px) {
+        .product-delete-modal {
+            padding: 24px 20px;
+        }
+
+        .product-delete-info img {
+            width: 70px;
+            height: 70px;
+        }
+
+        .product-delete-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+
+        .product-delete-cancel,
+        .product-delete-confirm {
+            width: 100%;
+        }
+    }
+    /* ===== LƯU Ý: TRẠNG THÁI NÚT XÓA MỤC ĐÃ CHỌN ===== */
+    .admin-delete-selected-btn:disabled {
+        color: #95a3b7;
+        cursor: not-allowed;
+        opacity: 0.65;
+    }
+
+    .admin-delete-selected-btn:not(:disabled) {
+        color: #dc2626;
+        cursor: pointer;
+        opacity: 1;
+    }
+
+        .admin-delete-selected-btn:not(:disabled):hover {
+            background: #fff1f2;
+            color: #b91c1c;
+        }
+</style>
+<div id="deleteProductModal" class="product-delete-overlay">
+    <div class="product-delete-modal">
+
+        <button type="button"
+                id="closeDeleteModal"
+                class="product-delete-close">
+            ×
+        </button>
+
+        <h2 id="deleteModalTitle">Xóa sản phẩm</h2>
+
+        <p id="deleteProductQuestion">
+            Bạn có chắc muốn xóa sản phẩm sau?
+        </p>
+
+        <div class="product-delete-info" id="deleteProductInfo">
+            <img id="deleteProductImage"
+                 src=""
+                 alt="Sản phẩm" />
+
+            <div>
+                <strong id="deleteProductName"></strong>
+            </div>
+        </div>
+
+        <div class="product-delete-actions">
+
+            <button type="button"
+                    id="cancelDeleteModal"
+                    class="product-delete-cancel">
+                Hủy
+            </button>
+
+            @* ===== LƯU Ý: NÚT XÁC NHẬN DÙNG CHUNG CHO XÓA MỘT VÀ XÓA NHIỀU ===== *@
+            <button type="button"
+                    id="confirmDeleteModal"
+                    class="product-delete-confirm">
+                Xóa sản phẩm
+            </button>
+            @* ===== KẾT THÚC NÚT XÁC NHẬN ===== *@
+
+        </div>
+    </div>
+</div>
+
+
+@* ===== LƯU Ý: FORM XÓA MỘT SẢN PHẨM ===== *@
+<form id="singleDeleteProductForm"
+      asp-area="Admin"
+      asp-controller="Product"
+      asp-action="Delete"
+      method="post"
+      style="display:none;">
+    @Html.AntiForgeryToken()
+
+    <input type="hidden"
+           name="id"
+           id="singleDeleteProductId" />
+</form>
+@* ===== KẾT THÚC FORM XÓA MỘT SẢN PHẨM ===== *@
+
+
+@* ===== LƯU Ý: FORM XÓA NHIỀU SẢN PHẨM ===== *@
+<form id="deleteSelectedProductsForm"
+      asp-area="Admin"
+      asp-controller="Product"
+      asp-action="DeleteSelected"
+      method="post"
+      style="display:none;">
+    @Html.AntiForgeryToken()
+
+    <div id="deleteSelectedProductInputs"></div>
+</form>
+@* ===== KẾT THÚC FORM XÓA NHIỀU SẢN PHẨM ===== *@
+@* ===== LƯU Ý: FORM XÓA CÁC SẢN PHẨM ĐƯỢC CHỌN ===== *@
+<form id="deleteSelectedProductsForm"
+      asp-area="Admin"
+      asp-controller="Product"
+      asp-action="DeleteSelected"
+      method="post"
+      style="display:none;">
+    @Html.AntiForgeryToken()
+
+    <div id="deleteSelectedProductInputs"></div>
+</form>
+@* ===== KẾT THÚC FORM XÓA CÁC SẢN PHẨM ĐƯỢC CHỌN ===== *@
+@* ===== LƯU Ý: FORM XÓA MỘT SẢN PHẨM ===== *@
+<form id="singleDeleteProductForm"
+      asp-area="Admin"
+      asp-controller="Product"
+      asp-action="Delete"
+      method="post"
+      style="display:none;">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="id" id="singleDeleteProductId" />
+</form>
+@* ===== KẾT THÚC FORM XÓA MỘT SẢN PHẨM ===== *@
+
+
+@* ===== LƯU Ý: FORM XÓA NHIỀU SẢN PHẨM ===== *@
+<form id="deleteSelectedProductsForm"
+      asp-area="Admin"
+      asp-controller="Product"
+      asp-action="DeleteSelected"
+      method="post"
+      style="display:none;">
+    @Html.AntiForgeryToken()
+    <div id="deleteSelectedProductInputs"></div>
+</form>
+@* ===== KẾT THÚC FORM XÓA NHIỀU SẢN PHẨM ===== *@
+
+
+@* ===== LƯU Ý: MODAL XÁC NHẬN DÙNG CHUNG CHO XÓA MỘT VÀ XÓA NHIỀU ===== *@
+<div class="modal fade"
+     id="deleteProductsConfirmModal"
+     tabindex="-1"
+     aria-labelledby="deleteProductsConfirmModalLabel"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content"
+             style="border:none;
+            border-radius:18px;
+            overflow:hidden;
+            box-shadow:0 24px 60px rgba(15,23,42,.25);">
+
+            <div style="padding:24px 26px;
+                background:linear-gradient(135deg,#ef4444,#dc2626);
+                color:white;
+                display:flex;
+                align-items:center;
+                gap:14px;">
+
+                <div style="width:46px;
+                    height:46px;
+                    border-radius:50%;
+                    background:rgba(255,255,255,.18);
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:22px;">
+                    !
+                </div>
+
+                <div>
+                    <h5 id="deleteProductsConfirmModalLabel"
+                        style="margin:0;
+                        font-size:20px;
+                        font-weight:900;">
+                        Xác nhận xóa
+                    </h5>
+
+                    <div style="margin-top:3px;
+                        opacity:.9;
+                        font-size:13px;">
+                        Thao tác này cần được xác nhận
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding:26px;">
+                <p id="deleteProductsConfirmMessage"
+                   style="margin:0;
+                    color:#334155;
+                    font-size:15px;
+                    line-height:1.6;">
+                    Bạn có chắc muốn xóa sản phẩm này không?
+                </p>
+            </div>
+
+            <div style="padding:0 26px 24px;
+                display:flex;
+                justify-content:flex-end;
+                gap:12px;">
+
+                <button type="button"
+                        class="btn btn-light"
+                        data-bs-dismiss="modal"
+                        style="min-width:110px;
+                    height:44px;
+                    border-radius:10px;
+                    font-weight:800;">
+                    Hủy
+                </button>
+
+                <button type="button"
+                        id="confirmDeleteProductsBtn"
+                        class="btn btn-danger"
+                        style="min-width:120px;
+                    height:44px;
+                    border-radius:10px;
+                    font-weight:850;">
+                    Xóa
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@* ===== KẾT THÚC MODAL XÁC NHẬN ===== *@
 @section Scripts {
     <script>
-        const productFilterButton = document.getElementById("toggleProductFilter");
-        const productManager = document.getElementById("adminProductManager");
+        const productFilterButton =
+            document.getElementById("toggleProductFilter");
+
+        const productManager =
+            document.getElementById("adminProductManager");
 
         if (productFilterButton && productManager) {
-            productFilterButton.addEventListener("click", function () {
+            productFilterButton.addEventListener("click", function() {
                 productManager.classList.toggle("filter-open");
                 productFilterButton.classList.toggle("active");
             });
         }
 
-        const selectAllProducts = document.getElementById("selectAllProducts");
-        const productCheckboxes = document.querySelectorAll(".product-row-checkbox");
 
-        if (selectAllProducts) {
-            selectAllProducts.addEventListener("change", function () {
-                productCheckboxes.forEach(function (checkbox) {
-                    checkbox.checked = selectAllProducts.checked;
-                });
+        // ===== LƯU Ý: XỬ LÝ CHỌN NHIỀU SẢN PHẨM =====
+        const selectAllProducts =
+            document.getElementById("selectAllProducts");
+
+        const productCheckboxes =
+            Array.from(
+                document.querySelectorAll(".product-row-checkbox")
+            );
+
+        const deleteSelectedProductsBtn =
+            document.getElementById("deleteSelectedProductsBtn");
+
+        function getSelectedProducts() {
+            return productCheckboxes.filter(function(checkbox) {
+                return checkbox.checked;
             });
         }
+
+        function updateSelectedState() {
+            const selectedCount = getSelectedProducts().length;
+
+            if (deleteSelectedProductsBtn) {
+                deleteSelectedProductsBtn.disabled =
+                    selectedCount === 0;
+
+                deleteSelectedProductsBtn.title =
+                    selectedCount === 0
+                        ? "Hãy chọn ít nhất một sản phẩm"
+                        : `Xóa ${selectedCount} sản phẩm đã chọn`;
+            }
+
+            if (selectAllProducts) {
+                selectAllProducts.checked =
+                    productCheckboxes.length > 0 &&
+                    selectedCount === productCheckboxes.length;
+
+                selectAllProducts.indeterminate =
+                    selectedCount > 0 &&
+                    selectedCount < productCheckboxes.length;
+            }
+        }
+
+        if (selectAllProducts) {
+            selectAllProducts.addEventListener("change", function() {
+                productCheckboxes.forEach(function(checkbox) {
+                    checkbox.checked = selectAllProducts.checked;
+                });
+
+                updateSelectedState();
+            });
+        }
+
+        productCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener(
+                "change",
+                updateSelectedState
+            );
+        });
+        // ===== KẾT THÚC XỬ LÝ CHỌN NHIỀU =====
+
+
+        // ===== LƯU Ý: MODAL XÓA DÙNG CHUNG =====
+        const deleteModal =
+            document.getElementById("deleteProductModal");
+
+        const closeDeleteModalButton =
+            document.getElementById("closeDeleteModal");
+
+        const cancelDeleteModalButton =
+            document.getElementById("cancelDeleteModal");
+
+        const confirmDeleteModalButton =
+            document.getElementById("confirmDeleteModal");
+
+        const deleteModalTitle =
+            document.getElementById("deleteModalTitle");
+
+        const deleteProductQuestion =
+            document.getElementById("deleteProductQuestion");
+
+        const deleteProductInfo =
+            document.getElementById("deleteProductInfo");
+
+        const deleteProductImage =
+            document.getElementById("deleteProductImage");
+
+        const deleteProductName =
+            document.getElementById("deleteProductName");
+
+        const singleDeleteProductForm =
+            document.getElementById("singleDeleteProductForm");
+
+        const singleDeleteProductId =
+            document.getElementById("singleDeleteProductId");
+
+        const deleteSelectedProductsForm =
+            document.getElementById("deleteSelectedProductsForm");
+
+        const deleteSelectedProductInputs =
+            document.getElementById("deleteSelectedProductInputs");
+
+        let deleteMode = null;
+
+
+        function openDeleteModal() {
+            if (!deleteModal) {
+                return;
+            }
+
+            confirmDeleteModalButton.disabled = false;
+
+            deleteModal.classList.add("show");
+            document.body.style.overflow = "hidden";
+        }
+
+
+        function closeDeleteModal() {
+            if (!deleteModal) {
+                return;
+            }
+
+            deleteModal.classList.remove("show");
+            document.body.style.overflow = "";
+
+            deleteMode = null;
+
+            confirmDeleteModalButton.disabled = false;
+
+            deleteProductImage.style.display = "";
+            deleteProductInfo.style.display = "flex";
+
+            deleteModalTitle.textContent = "Xóa sản phẩm";
+            confirmDeleteModalButton.textContent = "Xóa sản phẩm";
+        }
+
+
+        // ===== LƯU Ý: XÓA MỘT SẢN PHẨM TỪ DẤU BA CHẤM =====
+        document
+            .querySelectorAll(".btn-open-delete-modal")
+            .forEach(function(button) {
+
+                button.addEventListener("click", function() {
+                    deleteMode = "single";
+
+                    const productId =
+                        button.dataset.id;
+
+                    const productName =
+                        button.dataset.name || "Sản phẩm";
+
+                    const productImage =
+                        button.dataset.image ||
+                        "/images/products/no-image.jpg";
+
+                    singleDeleteProductId.value =
+                        productId;
+
+                    deleteModalTitle.textContent =
+                        "Xóa sản phẩm";
+
+                    deleteProductQuestion.textContent =
+                        "Bạn có chắc muốn xóa sản phẩm sau?";
+
+                    deleteProductInfo.style.display =
+                        "flex";
+
+                    deleteProductImage.style.display =
+                        "";
+
+                    deleteProductImage.src =
+                        productImage;
+
+                    deleteProductName.textContent =
+                        productName;
+
+                    confirmDeleteModalButton.textContent =
+                        "Xóa sản phẩm";
+
+                    openDeleteModal();
+                });
+            });
+        // ===== KẾT THÚC XÓA MỘT SẢN PHẨM =====
+
+
+        // ===== LƯU Ý: XÓA CÁC MỤC ĐÃ CHỌN BẰNG CÙNG TEMPLATE =====
+        if (deleteSelectedProductsBtn) {
+            deleteSelectedProductsBtn.addEventListener(
+                "click",
+                function() {
+
+                    const selectedProducts =
+                        getSelectedProducts();
+
+                    if (selectedProducts.length === 0) {
+                        return;
+                    }
+
+                    deleteMode = "multiple";
+
+                    deleteSelectedProductInputs.innerHTML =
+                        "";
+
+                    selectedProducts.forEach(
+                        function(checkbox) {
+
+                            const input =
+                                document.createElement("input");
+
+                            input.type = "hidden";
+                            input.name = "selectedIds";
+                            input.value = checkbox.value;
+
+                            deleteSelectedProductInputs
+                                .appendChild(input);
+                        }
+                    );
+
+                    deleteModalTitle.textContent =
+                        "Xóa các sản phẩm đã chọn";
+
+                    deleteProductQuestion.textContent =
+                        "Bạn có chắc muốn xóa các sản phẩm sau?";
+
+                    deleteProductInfo.style.display =
+                        "flex";
+
+                    deleteProductImage.style.display =
+                        "none";
+
+                    deleteProductName.textContent =
+                        `${selectedProducts.length} sản phẩm đã chọn`;
+
+                    confirmDeleteModalButton.textContent =
+                        "Xóa mục đã chọn";
+
+                    openDeleteModal();
+                }
+            );
+        }
+        // ===== KẾT THÚC XÓA CÁC MỤC ĐÃ CHỌN =====
+
+
+        // ===== LƯU Ý: NÚT XÁC NHẬN XÓA =====
+        if (confirmDeleteModalButton) {
+            confirmDeleteModalButton.addEventListener(
+                "click",
+                function() {
+
+                    confirmDeleteModalButton.disabled =
+                        true;
+
+                    if (deleteMode === "single") {
+                        singleDeleteProductForm.submit();
+                        return;
+                    }
+
+                    if (deleteMode === "multiple") {
+                        deleteSelectedProductsForm.submit();
+                        return;
+                    }
+
+                    confirmDeleteModalButton.disabled =
+                        false;
+                }
+            );
+        }
+        // ===== KẾT THÚC NÚT XÁC NHẬN =====
+
+
+        if (closeDeleteModalButton) {
+            closeDeleteModalButton.addEventListener(
+                "click",
+                closeDeleteModal
+            );
+        }
+
+        if (cancelDeleteModalButton) {
+            cancelDeleteModalButton.addEventListener(
+                "click",
+                closeDeleteModal
+            );
+        }
+
+        if (deleteModal) {
+            deleteModal.addEventListener(
+                "click",
+                function(event) {
+
+                    if (event.target === deleteModal) {
+                        closeDeleteModal();
+                    }
+                }
+            );
+        }
+
+        document.addEventListener(
+            "keydown",
+            function(event) {
+
+                if (event.key === "Escape" &&
+                    deleteModal &&
+                    deleteModal.classList.contains("show")) {
+
+                    closeDeleteModal();
+                }
+            }
+        );
+        // ===== KẾT THÚC MODAL XÓA DÙNG CHUNG =====
+
+
+        updateSelectedState();
     </script>
 }

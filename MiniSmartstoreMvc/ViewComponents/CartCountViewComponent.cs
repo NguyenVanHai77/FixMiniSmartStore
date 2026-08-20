@@ -1,10 +1,10 @@
-﻿using System.Text.Json;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniSmartstoreMvc.Data;
 using MiniSmartstoreMvc.Models;
 using MiniSmartstoreMvc.ViewModels;
+using System.Text.Json;
 
 namespace MiniSmartstoreMvc.ViewComponents
 {
@@ -25,7 +25,7 @@ namespace MiniSmartstoreMvc.ViewComponents
 
         public async Task<IViewComponentResult> InvokeAsync()
         {
-            int count = 0;
+            var count = 0;
 
             if (User.Identity?.IsAuthenticated == true)
             {
@@ -33,9 +33,11 @@ namespace MiniSmartstoreMvc.ViewComponents
 
                 if (!string.IsNullOrEmpty(userId))
                 {
+                    // ===== LƯU Ý: BADGE ĐẾM TOÀN BỘ SẢN PHẨM THỰC SỰ CÒN TRONG GIỎ =====
                     count = await _context.CartItems
                         .Where(c => c.UserId == userId)
                         .SumAsync(c => (int?)c.Quantity) ?? 0;
+                    // ===== KẾT THÚC ĐẾM TOÀN BỘ SẢN PHẨM TRONG GIỎ =====
                 }
             }
             else
@@ -44,10 +46,25 @@ namespace MiniSmartstoreMvc.ViewComponents
 
                 if (!string.IsNullOrWhiteSpace(json))
                 {
-                    var sessionCart = JsonSerializer.Deserialize<List<SessionCartItem>>(json)
+                    var sessionCart =
+                        JsonSerializer.Deserialize<List<SessionCartItem>>(json)
                         ?? new List<SessionCartItem>();
 
-                    count = sessionCart.Sum(x => x.Quantity);
+                    var productIds = sessionCart
+                        .Select(x => x.ProductId)
+                        .Distinct()
+                        .ToList();
+
+                    // ===== LƯU Ý: CHỈ LOẠI SẢN PHẨM KHÔNG CÒN TỒN TẠI TRONG DATABASE =====
+                    var existingProductIds = await _context.Products
+                        .Where(p => productIds.Contains(p.Id))
+                        .Select(p => p.Id)
+                        .ToListAsync();
+
+                    count = sessionCart
+                        .Where(x => existingProductIds.Contains(x.ProductId))
+                        .Sum(x => x.Quantity);
+                    // ===== KẾT THÚC KIỂM TRA SẢN PHẨM TỒN TẠI =====
                 }
             }
 

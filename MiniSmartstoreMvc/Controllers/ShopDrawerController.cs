@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniSmartstoreMvc.Data;
+using MiniSmartstoreMvc.Extensions;
 using MiniSmartstoreMvc.Models;
 using MiniSmartstoreMvc.ViewModels;
 
@@ -67,7 +68,8 @@ namespace MiniSmartstoreMvc.Controllers
                 return new List<SessionCartItem>();
             }
 
-            return JsonSerializer.Deserialize<List<SessionCartItem>>(json) ?? new List<SessionCartItem>();
+            return JsonSerializer.Deserialize<List<SessionCartItem>>(json)
+                   ?? new List<SessionCartItem>();
         }
 
         private async Task<List<CartItemViewModel>> GetCartItemsAsync()
@@ -76,34 +78,47 @@ namespace MiniSmartstoreMvc.Controllers
             {
                 var userId = GetUserId();
 
+                // ===== LƯU Ý: GIỮ SẢN PHẨM ĐÃ NGỪNG BÁN TRONG GIỎ HÀNG DRAWER =====
                 var dbItems = await _context.CartItems
                     .Include(c => c.Product)
-                    .ThenInclude(p => p!.Category)
+                        .ThenInclude(p => p!.Category)
                     .Where(c => c.UserId == userId)
                     .ToListAsync();
+                // ===== KẾT THÚC GIỮ SẢN PHẨM TRONG GIỎ HÀNG DRAWER =====
 
-                return dbItems.Select(c => new CartItemViewModel
-                {
-                    ProductId = c.ProductId,
-                    Product = c.Product,
-                    Quantity = c.Quantity
-                }).ToList();
+                return dbItems
+                    .Where(c => c.Product != null)
+                    .Select(c => new CartItemViewModel
+                    {
+                        ProductId = c.ProductId,
+                        Product = c.Product,
+                        Quantity = c.Quantity,
+                        SelectedColor = c.SelectedColor
+                    })
+                    .ToList();
             }
 
             var sessionCart = GetSessionCart();
-            var productIds = sessionCart.Select(c => c.ProductId).ToList();
 
+            var productIds = sessionCart
+                .Select(c => c.ProductId)
+                .Distinct()
+                .ToList();
+
+            // ===== LƯU Ý: KHÔNG LỌC SẢN PHẨM HẾT HẠN KHI CHỈ HIỂN THỊ DRAWER =====
             var products = await _context.Products
                 .Include(p => p.Category)
-                .Where(p => productIds.Contains(p.Id) && p.IsActive)
+                .Where(p => productIds.Contains(p.Id))
                 .ToListAsync();
+            // ===== KẾT THÚC KHÔNG LỌC SẢN PHẨM HẾT HẠN =====
 
             return sessionCart
                 .Select(item => new CartItemViewModel
                 {
                     ProductId = item.ProductId,
                     Product = products.FirstOrDefault(p => p.Id == item.ProductId),
-                    Quantity = item.Quantity
+                    Quantity = item.Quantity,
+                    SelectedColor = item.SelectedColor
                 })
                 .Where(item => item.Product != null)
                 .ToList();
@@ -124,11 +139,15 @@ namespace MiniSmartstoreMvc.Controllers
             }
 
             var userId = GetUserId();
+            var now = DateTime.Now;
 
             foreach (var productId in sessionWishlistIds.Distinct())
             {
+                // ===== LƯU Ý: KHÔNG ĐỒNG BỘ SẢN PHẨM ĐÃ NGỪNG BÁN VÀO WISHLIST =====
                 var productExists = await _context.Products
-                    .AnyAsync(p => p.Id == productId && p.IsActive);
+                    .AvailableForSale(now)
+                    .AnyAsync(p => p.Id == productId);
+                // ===== KẾT THÚC KHÔNG ĐỒNG BỘ SẢN PHẨM ĐÃ NGỪNG BÁN VÀO WISHLIST =====
 
                 if (!productExists)
                 {
@@ -144,7 +163,7 @@ namespace MiniSmartstoreMvc.Controllers
                     {
                         UserId = userId,
                         ProductId = productId,
-                        CreatedAt = DateTime.Now
+                        CreatedAt = now
                     });
                 }
             }
@@ -155,6 +174,8 @@ namespace MiniSmartstoreMvc.Controllers
 
         private async Task<List<Product>> GetWishlistProductsAsync()
         {
+            var now = DateTime.Now;
+
             if (IsLoggedIn())
             {
                 await MergeSessionWishlistToDatabaseAsync();
@@ -163,8 +184,15 @@ namespace MiniSmartstoreMvc.Controllers
 
                 return await _context.WishlistItems
                     .Include(w => w.Product)
-                    .ThenInclude(p => p!.Category)
-                    .Where(w => w.UserId == userId && w.Product != null && w.Product.IsActive)
+                        .ThenInclude(p => p!.Category)
+                    .Where(w =>
+                        w.UserId == userId &&
+                        w.Product != null &&
+                        w.Product.IsActive &&
+                        (!w.Product.AvailableStartDate.HasValue ||
+                         w.Product.AvailableStartDate.Value <= now) &&
+                        (!w.Product.AvailableEndDate.HasValue ||
+                         w.Product.AvailableEndDate.Value > now))
                     .OrderByDescending(w => w.CreatedAt)
                     .Select(w => w.Product!)
                     .ToListAsync();
@@ -174,7 +202,8 @@ namespace MiniSmartstoreMvc.Controllers
 
             var products = await _context.Products
                 .Include(p => p.Category)
-                .Where(p => wishlistIds.Contains(p.Id) && p.IsActive)
+                .AvailableForSale(now)
+                .Where(p => wishlistIds.Contains(p.Id))
                 .ToListAsync();
 
             return products
@@ -185,10 +214,12 @@ namespace MiniSmartstoreMvc.Controllers
         private async Task<List<Product>> GetCompareProductsAsync()
         {
             var compareIds = GetSessionProductIds(CompareSessionKey);
+            var now = DateTime.Now;
 
             var products = await _context.Products
                 .Include(p => p.Category)
-                .Where(p => compareIds.Contains(p.Id) && p.IsActive)
+                .AvailableForSale(now)
+                .Where(p => compareIds.Contains(p.Id))
                 .ToListAsync();
 
             return products
@@ -215,15 +246,20 @@ namespace MiniSmartstoreMvc.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddToWishlist(int id)
         {
+            var now = DateTime.Now;
+
+            // ===== LƯU Ý: CHỈ CHO THÊM SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN VÀO WISHLIST =====
             var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+                .AvailableForSale(now)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            // ===== KẾT THÚC CHỈ CHO THÊM SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN VÀO WISHLIST =====
 
             if (product == null)
             {
                 return Json(new
                 {
                     success = false,
-                    message = "Không tìm thấy sản phẩm."
+                    message = "Sản phẩm không tồn tại hoặc đã ngừng bán."
                 });
             }
 
@@ -240,7 +276,7 @@ namespace MiniSmartstoreMvc.Controllers
                     {
                         UserId = userId,
                         ProductId = id,
-                        CreatedAt = DateTime.Now
+                        CreatedAt = now
                     });
 
                     await _context.SaveChangesAsync();
@@ -269,15 +305,20 @@ namespace MiniSmartstoreMvc.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddToCompare(int id)
         {
+            var now = DateTime.Now;
+
+            // ===== LƯU Ý: CHỈ CHO THÊM SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN VÀO SO SÁNH =====
             var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+                .AvailableForSale(now)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            // ===== KẾT THÚC CHỈ CHO THÊM SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN VÀO SO SÁNH =====
 
             if (product == null)
             {
                 return Json(new
                 {
                     success = false,
-                    message = "Không tìm thấy sản phẩm."
+                    message = "Sản phẩm không tồn tại hoặc đã ngừng bán."
                 });
             }
 
@@ -312,7 +353,9 @@ namespace MiniSmartstoreMvc.Controllers
                 var userId = GetUserId();
 
                 var item = await _context.WishlistItems
-                    .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == id);
+                    .FirstOrDefaultAsync(w =>
+                        w.UserId == userId &&
+                        w.ProductId == id);
 
                 if (item != null)
                 {

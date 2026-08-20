@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniSmartstoreMvc.Data;
+using MiniSmartstoreMvc.Extensions;
 using MiniSmartstoreMvc.Models;
 using MiniSmartstoreMvc.ViewModels;
 using PaymentMethodEnum = MiniSmartstoreMvc.Models.PaymentMethod;
+
 namespace MiniSmartstoreMvc.Controllers
 {
     [Authorize]
@@ -39,19 +41,33 @@ namespace MiniSmartstoreMvc.Controllers
         private async Task<List<CartItemViewModel>> GetCartItemsAsync()
         {
             var userId = GetUserId();
+            var now = DateTime.Now;
 
+            // ===== LƯU Ý: CHECKOUT CHỈ LẤY SẢN PHẨM CÒN KHẢ DỤNG =====
             var cartItems = await _context.CartItems
                 .Include(c => c.Product)
-                .ThenInclude(p => p.Category)
-                .Where(c => c.UserId == userId)
+                    .ThenInclude(p => p.Category)
+                .Where(c =>
+                    c.UserId == userId &&
+                    c.Product.IsActive &&
+                    c.Product.StockQuantity > 0 &&
+                    c.Quantity <= c.Product.StockQuantity &&
+                    (!c.Product.AvailableStartDate.HasValue ||
+                     c.Product.AvailableStartDate.Value <= now) &&
+                    (!c.Product.AvailableEndDate.HasValue ||
+                     c.Product.AvailableEndDate.Value > now))
                 .ToListAsync();
+            // ===== KẾT THÚC CHECKOUT CHỈ LẤY SẢN PHẨM CÒN KHẢ DỤNG =====
 
-            return cartItems.Select(c => new CartItemViewModel
-            {
-                ProductId = c.ProductId,
-                Product = c.Product,
-                Quantity = c.Quantity
-            }).ToList();
+            return cartItems
+                .Select(c => new CartItemViewModel
+                {
+                    ProductId = c.ProductId,
+                    Product = c.Product,
+                    Quantity = c.Quantity,
+                    SelectedColor = c.SelectedColor
+                })
+                .ToList();
         }
 
         private async Task<decimal> GetProductsTotalAsync()
@@ -65,7 +81,11 @@ namespace MiniSmartstoreMvc.Controllers
         {
             var value = HttpContext.Session.GetString(CheckoutShippingFeeKey);
 
-            if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var fee))
+            if (decimal.TryParse(
+                value,
+                NumberStyles.Any,
+                CultureInfo.InvariantCulture,
+                out var fee))
             {
                 return fee;
             }
@@ -103,7 +123,9 @@ namespace MiniSmartstoreMvc.Controllers
 
             if (!cartItems.Any())
             {
-                TempData["Error"] = "Giỏ hàng của bạn đang trống.";
+                TempData["Error"] =
+                    "Giỏ hàng của bạn không có sản phẩm đang được phép bán.";
+
                 return RedirectToAction("Index", "Cart");
             }
 
@@ -140,7 +162,9 @@ namespace MiniSmartstoreMvc.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult BillingAddress(CheckoutAddressViewModel model, string addressMode)
+        public IActionResult BillingAddress(
+            CheckoutAddressViewModel model,
+            string addressMode)
         {
             ViewBag.CheckoutStep = 2;
 
@@ -150,32 +174,52 @@ namespace MiniSmartstoreMvc.Controllers
                     string.IsNullOrWhiteSpace(model.SavedPhoneNumber) ||
                     string.IsNullOrWhiteSpace(model.SavedShippingAddress))
                 {
-                    ModelState.AddModelError("", "Địa chỉ lưu sẵn chưa đầy đủ. Vui lòng thêm địa chỉ mới.");
+                    ModelState.AddModelError(
+                        "",
+                        "Địa chỉ lưu sẵn chưa đầy đủ. Vui lòng thêm địa chỉ mới.");
+
                     return View(model);
                 }
 
-                HttpContext.Session.SetString(CheckoutNameKey, model.SavedCustomerName);
-                HttpContext.Session.SetString(CheckoutPhoneKey, model.SavedPhoneNumber);
-                HttpContext.Session.SetString(CheckoutAddressKey, model.SavedShippingAddress);
+                HttpContext.Session.SetString(
+                    CheckoutNameKey,
+                    model.SavedCustomerName);
+
+                HttpContext.Session.SetString(
+                    CheckoutPhoneKey,
+                    model.SavedPhoneNumber);
+
+                HttpContext.Session.SetString(
+                    CheckoutAddressKey,
+                    model.SavedShippingAddress);
 
                 return RedirectToAction(nameof(ShippingMethod));
             }
 
             model.UseNewAddress = true;
 
+            // ===== LƯU Ý: XÓA VALIDATION CŨ KHI NHẬP ĐỊA CHỈ MỚI =====
+            ModelState.Clear();
+
             if (string.IsNullOrWhiteSpace(model.CustomerName))
             {
-                ModelState.AddModelError(nameof(model.CustomerName), "Vui lòng nhập họ tên");
+                ModelState.AddModelError(
+                    nameof(model.CustomerName),
+                    "Vui lòng nhập họ tên");
             }
 
             if (string.IsNullOrWhiteSpace(model.PhoneNumber))
             {
-                ModelState.AddModelError(nameof(model.PhoneNumber), "Vui lòng nhập số điện thoại");
+                ModelState.AddModelError(
+                    nameof(model.PhoneNumber),
+                    "Vui lòng nhập số điện thoại");
             }
 
             if (string.IsNullOrWhiteSpace(model.ShippingAddress))
             {
-                ModelState.AddModelError(nameof(model.ShippingAddress), "Vui lòng nhập địa chỉ nhận hàng");
+                ModelState.AddModelError(
+                    nameof(model.ShippingAddress),
+                    "Vui lòng nhập địa chỉ nhận hàng");
             }
 
             if (!ModelState.IsValid)
@@ -183,9 +227,17 @@ namespace MiniSmartstoreMvc.Controllers
                 return View(model);
             }
 
-            HttpContext.Session.SetString(CheckoutNameKey, model.CustomerName);
-            HttpContext.Session.SetString(CheckoutPhoneKey, model.PhoneNumber);
-            HttpContext.Session.SetString(CheckoutAddressKey, model.ShippingAddress);
+            HttpContext.Session.SetString(
+                CheckoutNameKey,
+                model.CustomerName);
+
+            HttpContext.Session.SetString(
+                CheckoutPhoneKey,
+                model.PhoneNumber);
+
+            HttpContext.Session.SetString(
+                CheckoutAddressKey,
+                model.ShippingAddress);
 
             return RedirectToAction(nameof(ShippingMethod));
         }
@@ -193,9 +245,22 @@ namespace MiniSmartstoreMvc.Controllers
         [HttpGet]
         public async Task<IActionResult> ShippingMethod()
         {
-            var total = await GetProductsTotalAsync();
+            var cartItems = await GetCartItemsAsync();
 
-            var selected = HttpContext.Session.GetString(CheckoutShippingKey) ?? "pickup";
+            if (!cartItems.Any())
+            {
+                TempData["Error"] =
+                    "Sản phẩm trong giỏ đã ngừng bán hoặc chưa tới thời gian bán.";
+
+                return RedirectToAction("Index", "Cart");
+            }
+
+            var total = cartItems.Sum(x =>
+                (x.Product?.Price ?? 0) * x.Quantity);
+
+            var selected =
+                HttpContext.Session.GetString(CheckoutShippingKey)
+                ?? "pickup";
 
             var model = new CheckoutShippingViewModel
             {
@@ -220,7 +285,10 @@ namespace MiniSmartstoreMvc.Controllers
                 _ => 0
             };
 
-            HttpContext.Session.SetString(CheckoutShippingKey, selectedShippingMethod);
+            HttpContext.Session.SetString(
+                CheckoutShippingKey,
+                selectedShippingMethod);
+
             SetShippingFee(fee);
 
             return RedirectToAction(nameof(PaymentMethod));
@@ -229,13 +297,28 @@ namespace MiniSmartstoreMvc.Controllers
         [HttpGet]
         public async Task<IActionResult> PaymentMethod()
         {
-            var total = await GetProductsTotalAsync();
+            var cartItems = await GetCartItemsAsync();
 
-            var paymentString = HttpContext.Session.GetString(CheckoutPaymentKey);
+            if (!cartItems.Any())
+            {
+                TempData["Error"] =
+                    "Sản phẩm trong giỏ đã ngừng bán hoặc chưa tới thời gian bán.";
 
-            var paymentMethod = PaymentMethodEnum.CashOnDelivery;
+                return RedirectToAction("Index", "Cart");
+            }
 
-            if (Enum.TryParse(paymentString, out PaymentMethodEnum  parsed))
+            var total = cartItems.Sum(x =>
+                (x.Product?.Price ?? 0) * x.Quantity);
+
+            var paymentString =
+                HttpContext.Session.GetString(CheckoutPaymentKey);
+
+            var paymentMethod =
+                PaymentMethodEnum.CashOnDelivery;
+
+            if (Enum.TryParse(
+                paymentString,
+                out PaymentMethodEnum parsed))
             {
                 paymentMethod = parsed;
             }
@@ -244,7 +327,14 @@ namespace MiniSmartstoreMvc.Controllers
             {
                 SelectedPaymentMethod = paymentMethod,
                 ProductsTotal = total,
-                ShippingFee = GetShippingFee()
+                ShippingFee = GetShippingFee(),
+
+                // ===== LƯU Ý: LẤY TÊN SẢN PHẨM CHO QR =====
+                ProductNames = cartItems
+                    .Where(x => x.Product != null)
+                    .Select(x => x.Product!.Name)
+                    .ToList()
+                // ===== KẾT THÚC LẤY TÊN SẢN PHẨM CHO QR =====
             };
 
             ViewBag.CheckoutStep = 4;
@@ -254,9 +344,12 @@ namespace MiniSmartstoreMvc.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult PaymentMethod(PaymentMethodEnum selectedPaymentMethod)
+        public IActionResult PaymentMethod(
+            PaymentMethodEnum selectedPaymentMethod)
         {
-            HttpContext.Session.SetString(CheckoutPaymentKey, selectedPaymentMethod.ToString());
+            HttpContext.Session.SetString(
+                CheckoutPaymentKey,
+                selectedPaymentMethod.ToString());
 
             return RedirectToAction(nameof(Confirm));
         }
@@ -268,30 +361,52 @@ namespace MiniSmartstoreMvc.Controllers
 
             if (!cartItems.Any())
             {
-                TempData["Error"] = "Giỏ hàng của bạn đang trống.";
+                TempData["Error"] =
+                    "Sản phẩm trong giỏ đã ngừng bán hoặc chưa tới thời gian bán.";
+
                 return RedirectToAction("Index", "Cart");
             }
 
-            var paymentString = HttpContext.Session.GetString(CheckoutPaymentKey);
+            var paymentString =
+                HttpContext.Session.GetString(CheckoutPaymentKey);
 
-            var paymentMethod = PaymentMethodEnum.CashOnDelivery;
+            var paymentMethod =
+                PaymentMethodEnum.CashOnDelivery;
 
-            if (Enum.TryParse(paymentString, out PaymentMethodEnum parsed))
+            if (Enum.TryParse(
+                paymentString,
+                out PaymentMethodEnum parsed))
             {
                 paymentMethod = parsed;
             }
 
-            var shippingMethod = HttpContext.Session.GetString(CheckoutShippingKey) ?? "pickup";
+            var shippingMethod =
+                HttpContext.Session.GetString(CheckoutShippingKey)
+                ?? "pickup";
 
             var model = new CheckoutConfirmViewModel
             {
-                CustomerName = HttpContext.Session.GetString(CheckoutNameKey) ?? string.Empty,
-                PhoneNumber = HttpContext.Session.GetString(CheckoutPhoneKey) ?? string.Empty,
-                ShippingAddress = HttpContext.Session.GetString(CheckoutAddressKey) ?? string.Empty,
-                ShippingMethodName = GetShippingMethodName(shippingMethod),
+                CustomerName =
+                    HttpContext.Session.GetString(CheckoutNameKey)
+                    ?? string.Empty,
+
+                PhoneNumber =
+                    HttpContext.Session.GetString(CheckoutPhoneKey)
+                    ?? string.Empty,
+
+                ShippingAddress =
+                    HttpContext.Session.GetString(CheckoutAddressKey)
+                    ?? string.Empty,
+
+                ShippingMethodName =
+                    GetShippingMethodName(shippingMethod),
+
                 PaymentMethod = paymentMethod,
                 CartItems = cartItems,
-                ProductsTotal = cartItems.Sum(x => (x.Product?.Price ?? 0) * x.Quantity),
+
+                ProductsTotal = cartItems.Sum(x =>
+                    (x.Product?.Price ?? 0) * x.Quantity),
+
                 ShippingFee = GetShippingFee()
             };
 
@@ -305,46 +420,86 @@ namespace MiniSmartstoreMvc.Controllers
         public async Task<IActionResult> PlaceOrder(string? orderNote)
         {
             var userId = GetUserId();
+            var now = DateTime.Now;
 
-            var cartItems = await _context.CartItems
+            // ===== LƯU Ý: LẤY TOÀN BỘ GIỎ NHƯNG CHỈ CHỌN SẢN PHẨM CÒN KHẢ DỤNG ĐỂ ĐẶT HÀNG =====
+            var allCartItems = await _context.CartItems
                 .Include(c => c.Product)
                 .Where(c => c.UserId == userId)
                 .ToListAsync();
 
-            if (!cartItems.Any())
+            if (!allCartItems.Any())
             {
                 TempData["Error"] = "Giỏ hàng của bạn đang trống.";
+
                 return RedirectToAction("Index", "Cart");
             }
 
-            var paymentString = HttpContext.Session.GetString(CheckoutPaymentKey);
+            var cartItems = allCartItems
+                .Where(item =>
+                    item.Product != null &&
+                    item.Product.IsActive &&
+                    item.Product.StockQuantity > 0 &&
+                    item.Quantity <= item.Product.StockQuantity &&
+                    (!item.Product.AvailableStartDate.HasValue ||
+                     item.Product.AvailableStartDate.Value <= now) &&
+                    (!item.Product.AvailableEndDate.HasValue ||
+                     item.Product.AvailableEndDate.Value > now))
+                .ToList();
 
-            var paymentMethod = PaymentMethodEnum.CashOnDelivery;
+            if (!cartItems.Any())
+            {
+                TempData["Error"] =
+                    "Giỏ hàng không còn sản phẩm khả dụng để thanh toán.";
 
-            if (Enum.TryParse(paymentString, out PaymentMethodEnum parsed))
+                return RedirectToAction("Index", "Cart");
+            }
+            // ===== KẾT THÚC CHỌN SẢN PHẨM CÒN KHẢ DỤNG =====
+
+            var paymentString =
+                HttpContext.Session.GetString(CheckoutPaymentKey);
+
+            var paymentMethod =
+                PaymentMethodEnum.CashOnDelivery;
+
+            if (Enum.TryParse(
+                paymentString,
+                out PaymentMethodEnum parsed))
             {
                 paymentMethod = parsed;
             }
 
-            var productsTotal = cartItems.Sum(x => (x.Product?.Price ?? 0) * x.Quantity);
+            var productsTotal = cartItems.Sum(x =>
+                (x.Product?.Price ?? 0) * x.Quantity);
+
             var shippingFee = GetShippingFee();
             var total = productsTotal + shippingFee;
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction =
+                await _context.Database.BeginTransactionAsync();
 
             try
             {
                 var order = new Order
                 {
                     UserId = userId,
-                    CustomerName = HttpContext.Session.GetString(CheckoutNameKey) ?? "Khách hàng",
-                    PhoneNumber = HttpContext.Session.GetString(CheckoutPhoneKey) ?? string.Empty,
-                    ShippingAddress = HttpContext.Session.GetString(CheckoutAddressKey) ?? string.Empty,
+                    CustomerName =
+                        HttpContext.Session.GetString(CheckoutNameKey)
+                        ?? "Khách hàng",
+
+                    PhoneNumber =
+                        HttpContext.Session.GetString(CheckoutPhoneKey)
+                        ?? string.Empty,
+
+                    ShippingAddress =
+                        HttpContext.Session.GetString(CheckoutAddressKey)
+                        ?? string.Empty,
+
                     TotalAmount = total,
                     PaymentMethod = paymentMethod,
                     PaymentStatus = PaymentStatus.Pending,
                     OrderStatus = OrderStatus.Pending,
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = now,
                     OrderDetails = new List<OrderDetail>()
                 };
 
@@ -355,11 +510,17 @@ namespace MiniSmartstoreMvc.Controllers
                         continue;
                     }
 
+                    // ===== LƯU Ý: KIỂM TRA LẠI TỒN KHO TRƯỚC KHI TRỪ =====
                     if (item.Product.StockQuantity < item.Quantity)
                     {
-                        TempData["Error"] = $"Sản phẩm {item.Product.Name} không đủ tồn kho.";
+                        await transaction.RollbackAsync();
+
+                        TempData["Error"] =
+                            $"Sản phẩm \"{item.Product.Name}\" không đủ tồn kho.";
+
                         return RedirectToAction("Index", "Cart");
                     }
+                    // ===== KẾT THÚC KIỂM TRA TỒN KHO =====
 
                     item.Product.StockQuantity -= item.Quantity;
 
@@ -376,24 +537,31 @@ namespace MiniSmartstoreMvc.Controllers
                     PaymentMethod = paymentMethod,
                     PaymentStatus = PaymentStatus.Pending,
                     Amount = total,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = now
                 };
 
                 await _context.Orders.AddAsync(order);
+
+                // ===== LƯU Ý: CHỈ XÓA NHỮNG SẢN PHẨM ĐÃ ĐƯỢC ĐẶT HÀNG =====
                 _context.CartItems.RemoveRange(cartItems);
+                // ===== KẾT THÚC CHỈ XÓA SẢN PHẨM ĐÃ ĐẶT HÀNG =====
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 ClearCheckoutSession();
 
-                return RedirectToAction(nameof(Completed), new { id = order.Id });
+                return RedirectToAction(
+                    nameof(Completed),
+                    new { id = order.Id });
             }
             catch
             {
                 await transaction.RollbackAsync();
 
-                TempData["Error"] = "Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.";
+                TempData["Error"] =
+                    "Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.";
+
                 return RedirectToAction(nameof(Confirm));
             }
         }
@@ -404,7 +572,9 @@ namespace MiniSmartstoreMvc.Controllers
             var userId = GetUserId();
 
             var order = await _context.Orders
-                .FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId);
+                .FirstOrDefaultAsync(o =>
+                    o.Id == id &&
+                    o.UserId == userId);
 
             if (order == null)
             {

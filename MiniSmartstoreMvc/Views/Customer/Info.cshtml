@@ -94,25 +94,20 @@
 
                 <div class="ss-form-row">
                     <label>Phương thức giao hàng ưu tiên</label>
-                    <div>
-                        <select asp-for="PreferredShippingMethodId" class="form-select">
-                            <option value="">Chưa chọn</option>
-                            <option>Giao hàng tiêu chuẩn</option>
-                            <option>Giao hàng nhanh</option>
-                            <option>Miễn phí giao hàng</option>
-                        </select>
-                    </div>
+                    <select asp-for="PreferredShippingMethodId"
+                            asp-items="Model.ShippingMethods"
+                            class="form-select">
+                        <option value="">Chưa chọn</option>
+                    </select>
                 </div>
 
                 <div class="ss-form-row">
                     <label>Phương thức thanh toán ưu tiên</label>
-                    <div>
-                        <select asp-for="PreferredPaymentMethod" class="form-select">
-                            <option value="">Chưa chọn</option>
-                            <option>Thanh toán khi nhận hàng</option>
-                            <option>Chuyển khoản ngân hàng</option>
-                        </select>
-                    </div>
+                    <select asp-for="PreferredPaymentMethod"
+                            asp-items="Model.PaymentMethods"
+                            class="form-select">
+                        <option value="">Chưa chọn</option>
+                    </select>
                 </div>
 
                 <div class="ss-form-row">

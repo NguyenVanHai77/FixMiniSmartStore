@@ -187,18 +187,15 @@
                                                         Sửa
                                                     </a>
 
-                                                    <form asp-area="Admin"
-                                                          asp-controller="Customer"
-                                                          asp-action="Delete"
-                                                          asp-route-id="@item.Id"
-                                                          method="post"
-                                                          onsubmit="return confirm('Bạn có chắc muốn xóa khách hàng này không? Nếu khách đã có đơn hàng, hệ thống sẽ chỉ khóa tài khoản để giữ dữ liệu.');">
-                                                        @Html.AntiForgeryToken()
-
-                                                        <button type="submit" class="admin-customer-mini-btn danger">
-                                                            Xóa
-                                                        </button>
-                                                    </form>
+                                                    <button type="button"
+                                                            class="admin-customer-mini-btn danger btn-open-customer-delete"
+                                                            data-id="@item.Id"
+                                                            data-email="@item.Email"
+                                                            data-name="@item.FullName"
+                                                            data-role="@item.RolesText"
+                                                            data-orders="@item.OrderCount">
+                                                        Xóa
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -266,6 +263,71 @@
         </div>
     </div>
 </div>
+<!-- Modal xác nhận xóa khách hàng -->
+<div id="customerDeleteModal" class="customer-delete-overlay">
+    <div class="customer-delete-modal">
+
+        <button type="button"
+                id="closeCustomerDeleteModal"
+                class="customer-delete-close">
+            ×
+        </button>
+
+        <h2>Xóa khách hàng</h2>
+
+        <p>Bạn có chắc muốn xóa khách hàng này?</p>
+
+        <div class="customer-delete-info">
+            <strong id="customerDeleteEmail"></strong>
+
+            <div>
+                Tên khách hàng:
+                <span id="customerDeleteName"></span>
+            </div>
+
+            <div>
+                Vai trò:
+                <span id="customerDeleteRole"></span>
+            </div>
+
+            <div>
+                Số đơn hàng:
+                <span id="customerDeleteOrders"></span>
+            </div>
+        </div>
+
+        <div class="customer-delete-warning">
+            Nếu khách hàng đã có đơn hàng, hệ thống sẽ chỉ khóa tài khoản để giữ lại dữ liệu.
+        </div>
+
+        <div class="customer-delete-actions">
+
+            <button type="button"
+                    id="cancelCustomerDeleteModal"
+                    class="customer-delete-cancel">
+                Hủy
+            </button>
+
+            <form asp-area="Admin"
+                  asp-controller="Customer"
+                  asp-action="Delete"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       id="customerDeleteId"
+                       name="id" />
+
+                <button type="submit"
+                        class="customer-delete-confirm">
+                    Xác nhận
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
@@ -288,6 +350,82 @@
                         checkbox.checked = selectAll.checked;
                     });
                 });
+            }
+        });
+
+                // ===== MODAL XOA KHACH HANG =====
+        const customerDeleteModal =
+            document.getElementById("customerDeleteModal");
+
+        const customerDeleteId =
+            document.getElementById("customerDeleteId");
+
+        const customerDeleteEmail =
+            document.getElementById("customerDeleteEmail");
+
+        const customerDeleteName =
+            document.getElementById("customerDeleteName");
+
+        const customerDeleteRole =
+            document.getElementById("customerDeleteRole");
+
+        const customerDeleteOrders =
+            document.getElementById("customerDeleteOrders");
+
+        const closeCustomerDeleteModal =
+            document.getElementById("closeCustomerDeleteModal");
+
+        const cancelCustomerDeleteModal =
+            document.getElementById("cancelCustomerDeleteModal");
+
+        document.querySelectorAll(".btn-open-customer-delete")
+            .forEach(function (button) {
+
+                button.addEventListener("click", function () {
+
+                    customerDeleteId.value = this.dataset.id;
+                    customerDeleteEmail.textContent = this.dataset.email;
+                    customerDeleteName.textContent = this.dataset.name || "Chưa có";
+                    customerDeleteRole.textContent = this.dataset.role || "Customer";
+                    customerDeleteOrders.textContent = this.dataset.orders || "0";
+
+                    customerDeleteModal.classList.add("show");
+                });
+
+            });
+
+        function hideCustomerDeleteModal() {
+            customerDeleteModal.classList.remove("show");
+        }
+
+        if (closeCustomerDeleteModal) {
+            closeCustomerDeleteModal.addEventListener(
+                "click",
+                hideCustomerDeleteModal
+            );
+        }
+
+        if (cancelCustomerDeleteModal) {
+            cancelCustomerDeleteModal.addEventListener(
+                "click",
+                hideCustomerDeleteModal
+            );
+        }
+
+        if (customerDeleteModal) {
+            customerDeleteModal.addEventListener("click", function (event) {
+                if (event.target === customerDeleteModal) {
+                    hideCustomerDeleteModal();
+                }
+            });
+        }
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" &&
+                customerDeleteModal &&
+                customerDeleteModal.classList.contains("show")) {
+
+                hideCustomerDeleteModal();
             }
         });
     </script>

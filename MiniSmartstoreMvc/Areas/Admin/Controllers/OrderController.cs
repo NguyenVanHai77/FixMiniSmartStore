@@ -318,6 +318,27 @@ namespace MiniSmartstoreMvc.Areas.Admin.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // ===== LƯU Ý: HỦY ĐƠN HÀNG =====
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            var order = await _context.Orders.FindAsync(id);
+
+            if (order == null)
+            {
+                return NotFound();
+            }
+
+            order.OrderStatus = OrderStatus.Cancelled;
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Đã hủy đơn hàng thành công.";
+
+            return RedirectToAction(nameof(Index));
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdatePaymentStatus(int id, PaymentStatus paymentStatus)

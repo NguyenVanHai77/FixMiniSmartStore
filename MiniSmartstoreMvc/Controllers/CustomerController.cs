@@ -123,24 +123,34 @@ namespace MiniSmartstoreMvc.Controllers
                 return Challenge();
             }
 
-            user.FullName = model.FullName;
-            user.PhoneNumber = model.PhoneNumber;
-            user.Address = model.Address;
+            // ===== LƯU Ý: LƯU ĐỊA CHỈ VÀO TÀI KHOẢN NGƯỜI DÙNG =====
+
+            user.FullName = model.FullName?.Trim();
+            user.PhoneNumber = model.PhoneNumber?.Trim();
+            user.Address = model.Address?.Trim();
 
             var result = await _userManager.UpdateAsync(user);
 
-            if (result.Succeeded)
+            if (!result.Succeeded)
             {
-                TempData["Success"] = "Đã cập nhật địa chỉ nhận hàng.";
-                return RedirectToAction(nameof(Addresses));
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError("", error.Description);
+                }
+
+                model.Email = user.Email ?? "";
+
+                return View(model);
             }
 
-            foreach (var error in result.Errors)
-            {
-                ModelState.AddModelError("", error.Description);
-            }
+            // Đồng bộ chắc chắn dữ liệu xuống database
+            await _context.SaveChangesAsync();
 
-            return View(model);
+            TempData["Success"] = "Đã lưu địa chỉ nhận hàng.";
+
+            // ===== KẾT THÚC LƯU ĐỊA CHỈ VÀO TÀI KHOẢN NGƯỜI DÙNG =====
+
+            return RedirectToAction(nameof(Addresses));
         }
 
         [HttpPost]

@@ -2,50 +2,185 @@
     ViewData["Title"] = "About us";
 }
 
-<div class="shop-service-page">
-    <section class="shop-service-hero about">
-        <span>About MiniSmartstore</span>
-        <h1>About us</h1>
-        <p>MiniSmartstore là website thương mại điện tử mini được xây dựng bằng ASP.NET Core MVC, hỗ trợ quản lý sản phẩm, giỏ hàng, yêu thích, so sánh và đặt hàng.</p>
+<div class="about-page">
+
+    <!-- HERO -->
+    <section class="about-hero">
+        <div class="about-hero-decoration about-hero-decoration-1"></div>
+        <div class="about-hero-decoration about-hero-decoration-2"></div>
+
+        <div class="about-hero-content">
+            <span class="about-badge">
+                About MiniSmartstore
+            </span>
+
+            <h1>About us</h1>
+
+            <p>
+                MiniSmartstore là website thương mại điện tử mini được xây dựng bằng
+                ASP.NET Core MVC, hỗ trợ quản lý sản phẩm, giỏ hàng, yêu thích,
+                so sánh sản phẩm và đặt hàng.
+            </p>
+        </div>
     </section>
 
-    <section class="shop-about-grid">
-        <div class="shop-about-card">
-            <h2>Chúng tôi làm gì?</h2>
-            <p>
-                MiniSmartstore tập trung vào trải nghiệm mua sắm đơn giản, dễ sử dụng và phù hợp với một dự án thương mại điện tử quy mô nhỏ.
-                Người dùng có thể xem sản phẩm, lọc danh mục, thêm vào giỏ hàng, lưu yêu thích, so sánh và đặt hàng.
-            </p>
+
+    <!-- ===== LƯU Ý: THÔNG TIN NHÓM HKT ===== -->
+    <section class="about-team-section">
+        <div class="about-section-heading">
+            <div>
+                <span class="about-section-label">OUR TEAM</span>
+                <h2>Nhóm HKT</h2>
+                <p>
+                    Danh sách thành viên tham gia xây dựng và phát triển dự án MiniSmartstore.
+                </p>
+            </div>
+
+            <div class="about-team-count">
+                <span>7</span>
+                <small>Thành viên</small>
+            </div>
         </div>
 
-        <div class="shop-about-card">
-            <h2>Mục tiêu dự án</h2>
-            <p>
-                Dự án được xây dựng để mô phỏng các chức năng quan trọng của một website bán hàng thực tế:
-                quản lý sản phẩm, danh mục, đơn hàng, khách hàng, tồn kho, báo cáo và giao diện quản trị.
-            </p>
-        </div>
+        <div class="about-team-table-wrapper">
+            <table class="about-team-table">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Thành viên</th>
+                        <th>MSSV</th>
+                    </tr>
+                </thead>
 
-        <div class="shop-about-card">
-            <h2>Công nghệ sử dụng</h2>
-            <ul>
-                <li>ASP.NET Core MVC</li>
-                <li>Entity Framework Core</li>
-                <li>SQL Server</li>
-                <li>Identity Authentication</li>
-                <li>HTML, CSS, JavaScript</li>
-            </ul>
-        </div>
+                <tbody>
+                    <tr>
+                        <td>01</td>
+                        <td>Nguyễn Tấn Tài</td>
+                        <td>2311558489</td>
+                    </tr>
 
-        <div class="shop-about-card">
-            <h2>Liên hệ</h2>
-            <p>
-                Cần hỗ trợ hoặc góp ý cho cửa hàng? Hãy gửi thông tin qua trang liên hệ.
-            </p>
+                    <tr>
+                        <td>02</td>
+                        <td>Hồ Lâm Minh Thái</td>
+                        <td>2311558432</td>
+                    </tr>
 
-            <a asp-controller="Contact" asp-action="Index" class="shop-about-btn">
-                Contact us
-            </a>
+                    <tr>
+                        <td>03</td>
+                        <td>Nguyễn Văn Hải</td>
+                        <td>2311558475</td>
+                    </tr>
+
+                    <tr>
+                        <td>04</td>
+                        <td>Trần Văn Thế</td>
+                        <td>2311558431</td>
+                    </tr>
+
+                    <tr>
+                        <td>05</td>
+                        <td>Ngũ Bảo Khang</td>
+                        <td>2311559811</td>
+                    </tr>
+
+                    <tr>
+                        <td>06</td>
+                        <td>Nguyễn Ân Phát</td>
+                        <td>2311558386</td>
+                    </tr>
+
+                    <tr>
+                        <td>07</td>
+                        <td>Nguyễn Duy Khiêm</td>
+                        <td>2311560212</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </section>
+    <!-- ===== KẾT THÚC THÔNG TIN NHÓM HKT ===== -->
+    <!-- NỘI DUNG -->
+    <section class="about-info-grid">
+
+        <article class="about-info-card">
+            <div class="about-card-icon">
+                <i class="bi bi-shop"></i>
+            </div>
+
+            <div>
+                <h3>Chúng tôi làm gì?</h3>
+
+                <p>
+                    MiniSmartstore tập trung vào trải nghiệm mua sắm đơn giản,
+                    dễ sử dụng và phù hợp với một dự án thương mại điện tử quy mô nhỏ.
+                    Người dùng có thể xem sản phẩm, lọc danh mục, thêm vào giỏ hàng,
+                    lưu yêu thích, so sánh và đặt hàng.
+                </p>
+            </div>
+        </article>
+
+
+        <article class="about-info-card">
+            <div class="about-card-icon">
+                <i class="bi bi-bullseye"></i>
+            </div>
+
+            <div>
+                <h3>Mục tiêu dự án</h3>
+
+                <p>
+                    Dự án được xây dựng nhằm mô phỏng các chức năng quan trọng
+                    của một website bán hàng thực tế như quản lý sản phẩm,
+                    danh mục, khách hàng, đơn hàng, tồn kho, báo cáo
+                    và giao diện quản trị.
+                </p>
+            </div>
+        </article>
+
+
+        <article class="about-info-card">
+            <div class="about-card-icon">
+                <i class="bi bi-code-slash"></i>
+            </div>
+
+            <div>
+                <h3>Công nghệ sử dụng</h3>
+
+                <div class="about-tech-list">
+                    <span>ASP.NET Core MVC</span>
+                    <span>Entity Framework Core</span>
+                    <span>SQL Server</span>
+                    <span>Identity Authentication</span>
+                    <span>HTML</span>
+                    <span>CSS</span>
+                    <span>JavaScript</span>
+                </div>
+            </div>
+        </article>
+
+
+        <article class="about-info-card">
+            <div class="about-card-icon">
+                <i class="bi bi-chat-dots"></i>
+            </div>
+
+            <div>
+                <h3>Liên hệ</h3>
+
+                <p>
+                    Cần hỗ trợ hoặc muốn đóng góp ý kiến cho cửa hàng?
+                    Hãy gửi thông tin cho nhóm phát triển thông qua trang liên hệ.
+                </p>
+
+                <a asp-controller="Contact"
+                   asp-action="Index"
+                   class="about-contact-btn">
+                    <i class="bi bi-send"></i>
+                    Liên hệ với chúng tôi
+                </a>
+            </div>
+        </article>
+
+    </section>
+
 </div>

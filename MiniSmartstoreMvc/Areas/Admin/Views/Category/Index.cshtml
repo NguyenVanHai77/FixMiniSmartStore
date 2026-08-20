@@ -75,11 +75,18 @@
                                     Sửa
                                 </a>
 
-                                <form asp-area="Admin" asp-controller="Category" asp-action="Delete" asp-route-id="@item.Id"
-                                      method="post" class="d-inline"
+                                <form asp-area="Admin"
+                                      asp-controller="Category"
+                                      asp-action="Delete"
+                                      asp-route-id="@item.Id"
+                                      method="post"
+                                      class="d-inline"
                                       onsubmit="return confirm('Bạn có chắc muốn xóa danh mục này?')">
+
                                     @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-danger">
+
+                                    <button type="submit"
+                                            class="btn btn-sm btn-danger">
                                         Xóa
                                     </button>
                                 </form>

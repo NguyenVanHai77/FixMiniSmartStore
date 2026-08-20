@@ -325,18 +325,15 @@
                                                     </li>
 
                                                     <li>
-                                                        <form asp-area="Admin"
-                                                              asp-controller="Order"
-                                                              asp-action="QuickCancel"
-                                                              asp-route-id="@item.Id"
-                                                              method="post"
-                                                              onsubmit="return confirm('Bạn có chắc muốn hủy đơn hàng này không?');">
-                                                            @Html.AntiForgeryToken()
-
-                                                            <button type="submit" class="dropdown-item text-danger">
-                                                                Hủy đơn hàng
-                                                            </button>
-                                                        </form>
+                                                        <button type="button"
+                                                                class="dropdown-item text-danger btn-open-order-cancel"
+                                                                data-id="@item.Id"
+                                                                data-code="@item.OrderCode"
+                                                                data-customer="@item.CustomerName"
+                                                                data-total="@item.TotalAmount.ToString("N0")"
+                                                                data-status="">
+                                                            Hủy đơn hàng
+                                                        </button>
                                                     </li>
                                                 </ul>
                                             </div>
@@ -459,6 +456,71 @@
     }
 }
 
+<!-- ===== LƯU Ý: MODAL HỦY ĐƠN HÀNG ===== -->
+<div id="orderCancelModal" class="order-cancel-overlay">
+    <div class="order-cancel-modal">
+
+        <button type="button"
+                id="closeOrderCancelModal"
+                class="order-cancel-close">
+            ×
+        </button>
+
+        <h2>Hủy đơn hàng</h2>
+
+        <p>Bạn có chắc muốn hủy đơn hàng này không?</p>
+
+        <div class="order-cancel-info">
+            <div>
+                Mã đơn:
+                <strong id="orderCancelCode"></strong>
+            </div>
+
+            <div>
+                Khách hàng:
+                <span id="orderCancelCustomer"></span>
+            </div>
+
+            <div>
+                Tổng tiền:
+                <span id="orderCancelTotal"></span> đ
+            </div>
+        </div>
+
+        <div class="order-cancel-warning">
+            Sau khi xác nhận, trạng thái đơn hàng sẽ được chuyển sang hủy.
+        </div>
+
+        <div class="order-cancel-actions">
+
+            <button type="button"
+                    id="cancelOrderCancelModal"
+                    class="order-cancel-back">
+                Hủy
+            </button>
+
+            <form asp-area="Admin"
+                  asp-controller="Order"
+                  asp-action="Cancel"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       id="orderCancelId"
+                       name="id" />
+
+                <button type="submit"
+                        class="order-cancel-confirm">
+                    Xác nhận hủy
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+<!-- ===== KẾT THÚC MODAL HỦY ĐƠN HÀNG ===== -->
+
 @section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -537,5 +599,79 @@
                 });
             }
         });
+
+                // ===== LƯU Ý: MODAL HỦY ĐƠN HÀNG =====
+        const orderCancelModal =
+            document.getElementById("orderCancelModal");
+
+        const orderCancelId =
+            document.getElementById("orderCancelId");
+
+        const orderCancelCode =
+            document.getElementById("orderCancelCode");
+
+        const orderCancelCustomer =
+            document.getElementById("orderCancelCustomer");
+
+        const orderCancelTotal =
+            document.getElementById("orderCancelTotal");
+
+        const closeOrderCancelModal =
+            document.getElementById("closeOrderCancelModal");
+
+        const cancelOrderCancelModal =
+            document.getElementById("cancelOrderCancelModal");
+
+        document.querySelectorAll(".btn-open-order-cancel")
+            .forEach(function (button) {
+
+                button.addEventListener("click", function () {
+
+                    orderCancelId.value = this.dataset.id;
+                    orderCancelCode.textContent = this.dataset.code || "";
+                    orderCancelCustomer.textContent = this.dataset.customer || "";
+                    orderCancelTotal.textContent = this.dataset.total || "0";
+
+                    orderCancelModal.classList.add("show");
+                });
+
+            });
+
+        function hideOrderCancelModal() {
+            orderCancelModal.classList.remove("show");
+        }
+
+        if (closeOrderCancelModal) {
+            closeOrderCancelModal.addEventListener(
+                "click",
+                hideOrderCancelModal
+            );
+        }
+
+        if (cancelOrderCancelModal) {
+            cancelOrderCancelModal.addEventListener(
+                "click",
+                hideOrderCancelModal
+            );
+        }
+
+        if (orderCancelModal) {
+            orderCancelModal.addEventListener("click", function (event) {
+                if (event.target === orderCancelModal) {
+                    hideOrderCancelModal();
+                }
+            });
+        }
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" &&
+                orderCancelModal &&
+                orderCancelModal.classList.contains("show")) {
+
+                hideOrderCancelModal();
+            }
+        });
+        // ===== KẾT THÚC MODAL HỦY ĐƠN HÀNG =====
+
     </script>
 }

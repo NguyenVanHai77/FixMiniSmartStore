@@ -43,7 +43,58 @@
         <partial name="_Form" model="Model" />
     </div>
 </div>
+@* ===== LƯU Ý: MODAL CẢNH BÁO THIẾU THÔNG TIN ===== *@
+<div id="createRequiredModal"
+     class="create-required-overlay">
 
+    <div class="create-required-modal">
+
+        <button type="button"
+                id="createRequiredClose"
+                class="create-required-close">
+            ×
+        </button>
+
+        <h2>Thiếu thông tin sản phẩm</h2>
+
+        <p>
+            Bạn chưa nhập đầy đủ các thông tin bắt buộc.
+        </p>
+
+        <div class="create-required-box">
+
+            <div class="create-required-icon">
+                !
+            </div>
+
+            <div>
+                <strong>Vui lòng nhập đầy đủ:</strong>
+
+                <ul id="createRequiredList"></ul>
+            </div>
+
+        </div>
+
+        <div class="create-required-actions">
+
+            <button type="button"
+                    id="createRequiredCancel"
+                    class="create-required-cancel">
+                Hủy
+            </button>
+
+            <button type="button"
+                    id="createRequiredConfirm"
+                    class="create-required-confirm">
+                Xác nhận
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+@* ===== KẾT THÚC MODAL CẢNH BÁO THIẾU THÔNG TIN ===== *@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
@@ -52,6 +103,7 @@
             initAdminProductTabs();
             initAdminProductImagePreview();
             initAdminProductPricePreview();
+            initCreateRequiredValidation();
         });
 
         function initAdminProductTabs() {
@@ -113,5 +165,307 @@
             oldPriceInput?.addEventListener("input", update);
             update();
         }
-    </script>
+        // ===== LƯU Ý: VALIDATION RIÊNG CHO CREATE PRODUCT =====
+        function initCreateRequiredValidation() {
+
+            const form =
+                document.getElementById("productForm");
+
+            const modal =
+                document.getElementById("createRequiredModal");
+
+            const missingList =
+                document.getElementById("createRequiredList");
+
+            const cancelButton =
+                document.getElementById("createRequiredCancel");
+
+            const confirmButton =
+                document.getElementById("createRequiredConfirm");
+
+            const closeButton =
+                document.getElementById("createRequiredClose");
+
+
+            if (!form || !modal) {
+                return;
+            }
+
+
+            const requiredFields = [
+                {
+                    id: "ProductCode",
+                    name: "Mã sản phẩm",
+                    type: "text"
+                },
+                {
+                    id: "Name",
+                    name: "Tên sản phẩm",
+                    type: "text"
+                },
+                {
+                    id: "StockQuantity",
+                    name: "Số lượng tồn kho",
+                    type: "number"
+                },
+                {
+                    id: "Price",
+                    name: "Giá bán",
+                    type: "number"
+                },
+                {
+                    id: "CategoryId",
+                    name: "Danh mục",
+                    type: "select"
+                }
+            ];
+
+
+            let currentMissing = [];
+
+
+            function isInvalid(definition) {
+
+                const field =
+                    document.getElementById(definition.id);
+
+                if (!field) {
+                    return false;
+                }
+
+
+                const value =
+                    (field.value || "").trim();
+
+
+                if (definition.type === "text") {
+                    return value === "";
+                }
+
+
+                if (definition.type === "number") {
+
+                    if (value === "") {
+                        return true;
+                    }
+
+                    const number =
+                        Number(value);
+
+                    return (
+                        !Number.isFinite(number) ||
+                        number <= 0
+                    );
+                }
+
+
+                if (definition.type === "select") {
+                    return (
+                        value === "" ||
+                        Number(value) <= 0
+                    );
+                }
+
+
+                return false;
+            }
+
+
+            function getMissing() {
+
+                return requiredFields.filter(
+                    field => isInvalid(field)
+                );
+            }
+
+
+            function showModal(fields) {
+
+                currentMissing = fields;
+
+                missingList.innerHTML = "";
+
+
+                fields.forEach(function(field) {
+
+                    const li =
+                        document.createElement("li");
+
+                    li.textContent =
+                        field.name;
+
+                    missingList.appendChild(li);
+                });
+
+
+                modal.classList.add("show");
+            }
+
+
+            function hideModal() {
+
+                modal.classList.remove("show");
+            }
+
+
+            function clearErrors() {
+
+                requiredFields.forEach(function(definition) {
+
+                    const field =
+                        document.getElementById(
+                            definition.id
+                        );
+
+                    field?.classList.remove(
+                        "create-required-error"
+                    );
+
+                    field
+                        ?.closest(".apf-money")
+                        ?.classList.remove(
+                            "create-required-money-error"
+                        );
+                });
+            }
+
+
+            function markErrors(fields) {
+
+                clearErrors();
+
+
+                fields.forEach(function(definition) {
+
+                    const field =
+                        document.getElementById(
+                            definition.id
+                        );
+
+                    if (!field) {
+                        return;
+                    }
+
+
+                    field.classList.add(
+                        "create-required-error"
+                    );
+
+
+                    field
+                        .closest(".apf-money")
+                        ?.classList.add(
+                            "create-required-money-error"
+                        );
+                });
+
+
+                if (fields.length === 0) {
+                    return;
+                }
+
+
+                const firstField =
+                    document.getElementById(
+                        fields[0].id
+                    );
+
+
+                const panel =
+                    firstField?.closest(".apf-panel");
+
+
+                if (panel?.id) {
+
+                    document.querySelector(
+                        '.apf-tab[data-tab="' +
+                        panel.id +
+                        '"]'
+                    )?.click();
+                }
+
+
+                setTimeout(function() {
+
+                    firstField?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
+
+                    firstField?.focus();
+
+                }, 100);
+            }
+
+
+            form.addEventListener(
+                "submit",
+                function(event) {
+
+                    const missing =
+                        getMissing();
+
+
+                    if (missing.length === 0) {
+                        clearErrors();
+                        return;
+                    }
+
+
+                    event.preventDefault();
+
+                    event.stopPropagation();
+
+                    showModal(missing);
+
+                },
+                true
+            );
+
+
+            cancelButton?.addEventListener(
+                "click",
+                function() {
+
+                    window.location.href =
+                        '@Url.Action(
+                                            "Index",
+                                            "Product",
+                                    new { area = "Admin" }
+                                            )';
+                }
+            );
+
+
+            confirmButton?.addEventListener(
+                "click",
+                function() {
+
+                    hideModal();
+
+                    markErrors(
+                        currentMissing
+                    );
+                }
+            );
+
+
+            closeButton?.addEventListener(
+                "click",
+                hideModal
+            );
+
+
+            modal.addEventListener(
+                "click",
+                function(event) {
+
+                    if (event.target === modal) {
+                        hideModal();
+                    }
+                }
+            );
+        }
+        // ===== KẾT THÚC VALIDATION RIÊNG CHO CREATE PRODUCT =====
+</script>
 }

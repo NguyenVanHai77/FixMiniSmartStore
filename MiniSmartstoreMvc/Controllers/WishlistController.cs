@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniSmartstoreMvc.Data;
+using MiniSmartstoreMvc.Extensions;
 using MiniSmartstoreMvc.Models;
 
 namespace MiniSmartstoreMvc.Controllers
@@ -52,28 +53,42 @@ namespace MiniSmartstoreMvc.Controllers
 
         public async Task<IActionResult> Index()
         {
+            var now = DateTime.Now;
+
             List<Product> products;
 
             if (IsLoggedIn())
             {
                 var userId = GetUserId();
 
+                // ===== LƯU Ý: CHỈ HIỂN THỊ SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN =====
                 products = await _context.WishlistItems
                     .Include(w => w.Product)
-                    .ThenInclude(p => p!.Category)
-                    .Where(w => w.UserId == userId && w.Product != null && w.Product.IsActive)
+                        .ThenInclude(p => p!.Category)
+                    .Where(w =>
+                        w.UserId == userId &&
+                        w.Product != null &&
+                        w.Product.IsActive &&
+                        (!w.Product.AvailableStartDate.HasValue ||
+                         w.Product.AvailableStartDate.Value <= now) &&
+                        (!w.Product.AvailableEndDate.HasValue ||
+                         w.Product.AvailableEndDate.Value > now))
                     .OrderByDescending(w => w.CreatedAt)
                     .Select(w => w.Product!)
                     .ToListAsync();
+                // ===== KẾT THÚC CHỈ HIỂN THỊ SẢN PHẨM ĐANG TRONG THỜI GIAN BÁN =====
             }
             else
             {
                 var ids = GetSessionWishlistIds();
 
+                // ===== LƯU Ý: LỌC WISHLIST SESSION THEO THỜI GIAN BÁN =====
                 products = await _context.Products
                     .Include(p => p.Category)
-                    .Where(p => ids.Contains(p.Id) && p.IsActive)
+                    .AvailableForSale(now)
+                    .Where(p => ids.Contains(p.Id))
                     .ToListAsync();
+                // ===== KẾT THÚC LỌC WISHLIST SESSION THEO THỜI GIAN BÁN =====
 
                 products = products
                     .OrderBy(p => ids.IndexOf(p.Id))
@@ -92,7 +107,9 @@ namespace MiniSmartstoreMvc.Controllers
                 var userId = GetUserId();
 
                 var item = await _context.WishlistItems
-                    .FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == id);
+                    .FirstOrDefaultAsync(w =>
+                        w.UserId == userId &&
+                        w.ProductId == id);
 
                 if (item != null)
                 {
@@ -112,6 +129,7 @@ namespace MiniSmartstoreMvc.Controllers
             }
 
             TempData["Success"] = "Đã xóa sản phẩm khỏi danh sách yêu thích.";
+
             return RedirectToAction("Index");
         }
 
@@ -136,6 +154,7 @@ namespace MiniSmartstoreMvc.Controllers
             }
 
             TempData["Success"] = "Đã xóa toàn bộ danh sách yêu thích.";
+
             return RedirectToAction("Index");
         }
     }

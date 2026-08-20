@@ -240,17 +240,17 @@
                                         </form>
                                     }
 
-                                    <form asp-area="Admin"
-                                          asp-controller="ProductReview"
-                                          asp-action="Delete"
-                                          asp-route-id="@item.Id"
-                                          method="post"
-                                          onsubmit="return confirm('Bạn có chắc muốn xóa đánh giá này không?');">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" class="admin-review-action-btn danger">
-                                            Xóa
-                                        </button>
-                                    </form>
+                                    <button type="button"
+                                            class="admin-review-action-btn danger btn-open-review-delete"
+                                            data-id="@item.Id"
+                                            data-product="@(item.Product?.Name ?? "Sản phẩm đã bị xóa")"
+                                            data-image="@productImage"
+                                            data-customer="@customerName"
+                                            data-rating="@item.Rating"
+                                            data-title="@item.Title"
+                                            data-comment="@item.Comment">
+                                        Xóa
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -311,4 +311,342 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/admin/admin-product-review.css" asp-append-version="true" />
+}
+
+<style>
+    .review-delete-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 20px;
+    }
+
+        .review-delete-overlay.show {
+            display: flex;
+        }
+
+    .review-delete-modal {
+        position: relative;
+        width: 560px;
+        max-width: 100%;
+        padding: 30px 32px 26px;
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25);
+    }
+
+        .review-delete-modal h2 {
+            margin: 0 0 22px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .review-delete-modal p {
+            margin: 0 0 20px;
+            font-size: 16px;
+            color: #555;
+        }
+
+    .review-delete-close {
+        position: absolute;
+        top: 14px;
+        right: 18px;
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: transparent;
+        font-size: 30px;
+        color: #999;
+        cursor: pointer;
+    }
+
+    .review-delete-info {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #f8fafc;
+    }
+
+    .review-delete-image {
+        width: 82px;
+        height: 82px;
+        object-fit: cover;
+        border: 1px solid #e5e7eb;
+        border-radius: 5px;
+        background: #fff;
+    }
+
+    .review-delete-details {
+        flex: 1;
+    }
+
+        .review-delete-details strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 17px;
+            color: #222;
+        }
+
+    .review-delete-rating {
+        color: #f59e0b;
+        font-size: 18px;
+    }
+
+    .review-delete-customer {
+        margin-bottom: 6px;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .review-delete-score {
+        color: #64748b;
+        font-size: 14px;
+        margin-left: 6px;
+    }
+
+    .review-delete-review {
+        margin-top: 10px;
+    }
+
+        .review-delete-review strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 14px;
+            color: #334155;
+        }
+
+        .review-delete-review p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.45;
+            color: #64748b;
+            word-break: break-word;
+        }
+
+    .review-delete-warning {
+        padding: 12px 14px;
+        margin-bottom: 26px;
+        border-radius: 5px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-size: 14px;
+    }
+
+    .review-delete-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .review-delete-actions form {
+            margin: 0;
+        }
+
+    .review-delete-cancel {
+        min-width: 90px;
+        height: 44px;
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        color: #777;
+        cursor: pointer;
+    }
+
+    .review-delete-confirm {
+        min-width: 120px;
+        height: 44px;
+        border: none;
+        border-radius: 3px;
+        background: #ee4d2d;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .review-delete-confirm:hover {
+            background: #d94325;
+        }
+</style>
+
+<!-- Modal xác nhận xóa đánh giá -->
+<div id="reviewDeleteModal" class="review-delete-overlay">
+    <div class="review-delete-modal">
+
+        <button type="button"
+                id="closeReviewDeleteModal"
+                class="review-delete-close">
+            ×
+        </button>
+
+        <h2>Xóa đánh giá</h2>
+
+        <p>Bạn có chắc muốn xóa đánh giá này?</p>
+
+        <div class="review-delete-info">
+
+            <img id="reviewDeleteImage"
+                 src=""
+                 alt="Sản phẩm"
+                 class="review-delete-image" />
+
+            <div class="review-delete-details">
+
+                <strong id="reviewDeleteProduct"></strong>
+
+                <div class="review-delete-customer">
+                    Khách hàng: <span id="reviewDeleteCustomer"></span>
+                </div>
+
+                <div class="review-delete-rating">
+                    <span id="reviewDeleteStars"></span>
+                    <span class="review-delete-score">(<span id="reviewDeleteRating"></span>/5)</span>
+                </div>
+
+                <div class="review-delete-review">
+                    <strong id="reviewDeleteTitle"></strong>
+                    <p id="reviewDeleteComment"></p>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="review-delete-warning">
+            Sau khi xóa, đánh giá này sẽ bị xóa khỏi hệ thống.
+        </div>
+
+        <div class="review-delete-actions">
+
+            <button type="button"
+                    id="cancelReviewDeleteModal"
+                    class="review-delete-cancel">
+                Hủy
+            </button>
+
+            <form asp-area="Admin"
+                  asp-controller="ProductReview"
+                  asp-action="Delete"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       id="reviewDeleteId"
+                       name="id" />
+
+                <button type="submit"
+                        class="review-delete-confirm">
+                    Xác nhận
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const reviewDeleteModal =
+            document.getElementById("reviewDeleteModal");
+
+        const reviewDeleteId =
+            document.getElementById("reviewDeleteId");
+
+        const reviewDeleteProduct =
+            document.getElementById("reviewDeleteProduct");
+
+        const reviewDeleteImage =
+            document.getElementById("reviewDeleteImage");
+
+        const reviewDeleteRating =
+            document.getElementById("reviewDeleteRating");
+
+        const reviewDeleteCustomer =
+            document.getElementById("reviewDeleteCustomer");
+
+        const reviewDeleteTitle =
+            document.getElementById("reviewDeleteTitle");
+
+        const reviewDeleteComment =
+            document.getElementById("reviewDeleteComment");
+
+        const reviewDeleteStars =
+            document.getElementById("reviewDeleteStars");
+
+        const closeReviewDeleteModal =
+            document.getElementById("closeReviewDeleteModal");
+
+        const cancelReviewDeleteModal =
+            document.getElementById("cancelReviewDeleteModal");
+
+
+        document.querySelectorAll(".btn-open-review-delete")
+            .forEach(function (button) {
+
+                button.addEventListener("click", function () {
+
+                    reviewDeleteId.value = this.dataset.id;
+                    reviewDeleteProduct.textContent = this.dataset.product;
+                    reviewDeleteCustomer.textContent = this.dataset.customer || "Khách hàng";
+                    reviewDeleteRating.textContent = this.dataset.rating;
+                    reviewDeleteTitle.textContent = this.dataset.title || "";
+                    reviewDeleteComment.textContent = this.dataset.comment || "";
+
+                    const ratingValue = parseInt(this.dataset.rating || "0");
+                    reviewDeleteStars.textContent =
+                        "★".repeat(ratingValue) + "☆".repeat(Math.max(0, 5 - ratingValue));
+
+                    if (this.dataset.image) {
+                        reviewDeleteImage.src = this.dataset.image;
+                        reviewDeleteImage.style.display = "block";
+                    }
+                    else {
+                        reviewDeleteImage.style.display = "none";
+                    }
+
+                    reviewDeleteModal.classList.add("show");
+                });
+
+            });
+
+
+        function hideReviewDeleteModal() {
+            reviewDeleteModal.classList.remove("show");
+        }
+
+
+        if (closeReviewDeleteModal) {
+            closeReviewDeleteModal.addEventListener(
+                "click",
+                hideReviewDeleteModal
+            );
+        }
+
+        if (cancelReviewDeleteModal) {
+            cancelReviewDeleteModal.addEventListener(
+                "click",
+                hideReviewDeleteModal
+            );
+        }
+
+        if (reviewDeleteModal) {
+            reviewDeleteModal.addEventListener("click", function (event) {
+
+                if (event.target === reviewDeleteModal) {
+                    hideReviewDeleteModal();
+                }
+
+            });
+        }
+    </script>
 }

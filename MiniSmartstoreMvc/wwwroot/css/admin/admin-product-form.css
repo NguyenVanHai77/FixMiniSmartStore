@@ -1055,3 +1055,190 @@
             background: #fff0ef;
             border-color: #ffc8c0;
         }
+/* ===== LƯU Ý: MODAL KIỂM TRA THÔNG TIN BẮT BUỘC ===== */
+
+.create-required-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.48);
+}
+
+
+    .create-required-overlay.show {
+        display: flex;
+    }
+
+
+.create-required-modal {
+    position: relative;
+    width: 100%;
+    max-width: 770px;
+    padding: 38px 44px 34px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 24px 60px rgba(15, 39, 72, 0.28);
+}
+
+
+    .create-required-modal h2 {
+        margin: 0 50px 22px 0;
+        color: #071d3a;
+        font-size: 27px;
+        font-weight: 800;
+    }
+
+
+    .create-required-modal > p {
+        margin: 0 0 24px;
+        color: #52647c;
+        font-size: 16px;
+    }
+
+
+.create-required-close {
+    position: absolute;
+    top: 22px;
+    right: 26px;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+
+    .create-required-close:hover {
+        background: #f3f8ff;
+        color: #27405f;
+    }
+
+
+.create-required-box {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+    padding: 18px 20px;
+    border: 1px solid #ffd4ce;
+    border-left: 5px solid #ee4d2d;
+    border-radius: 10px;
+    background: #fff8f6;
+}
+
+
+.create-required-icon {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #ee4d2d;
+    color: #ffffff;
+    font-size: 22px;
+    font-weight: 900;
+}
+
+
+.create-required-box strong {
+    display: block;
+    margin-bottom: 7px;
+    color: #071d3a;
+    font-size: 14px;
+    font-weight: 850;
+}
+
+
+.create-required-box ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #52647c;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+
+.create-required-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+}
+
+
+.create-required-cancel,
+.create-required-confirm {
+    min-height: 48px;
+    padding: 0 30px;
+    border-radius: 6px;
+    font-family: "Be Vietnam Pro", Arial, sans-serif;
+    font-size: 15px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+
+.create-required-cancel {
+    border: 0;
+    background: transparent;
+    color: #64748b;
+}
+
+
+    .create-required-cancel:hover {
+        background: #f8fafc;
+    }
+
+
+.create-required-confirm {
+    border: 1px solid #ee4d2d;
+    background: #ee4d2d;
+    color: #ffffff;
+}
+
+
+    .create-required-confirm:hover {
+        background: #d94325;
+        border-color: #d94325;
+    }
+
+
+.apf-control.create-required-error {
+    border-color: #e52b18 !important;
+    background: #fff7f5 !important;
+    box-shadow: 0 0 0 3px rgba(229, 43, 24, 0.10) !important;
+}
+
+
+.apf-money.create-required-money-error {
+    border-color: #e52b18 !important;
+    box-shadow: 0 0 0 3px rgba(229, 43, 24, 0.10);
+}
+
+
+@media (max-width: 768px) {
+
+    .create-required-modal {
+        padding: 30px 22px 24px;
+    }
+
+
+    .create-required-actions {
+        flex-direction: column-reverse;
+    }
+
+
+    .create-required-cancel,
+    .create-required-confirm {
+        width: 100%;
+    }
+}
+
+/* ===== KẾT THÚC MODAL KIỂM TRA THÔNG TIN BẮT BUỘC ===== */

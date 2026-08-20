@@ -4,207 +4,619 @@
 @{
     ViewData["Title"] = "Shop";
 
-    var categories = ViewBag.Categories as List<Category> ?? new List<Category>();
-    var products = Model?.ToList() ?? new List<Product>();
+    var categories =
+        ViewBag.Categories as List<Category>
+        ?? new List<Category>();
+
+    var products =
+        Model?.ToList()
+        ?? new List<Product>();
+
+    var promotionProduct =
+        ViewBag.PromotionProduct as Product;
+
+
+    // ===== LƯU Ý: KIỂM TRA POPUP CÓ ĐƯỢC PHÉP HIỆN KHÔNG =====
+    var showPromotionPopup =
+        ViewBag.ShowPromotionPopup is bool showPopup
+        && showPopup;
+    // ===== KẾT THÚC KIỂM TRA POPUP CÓ ĐƯỢC PHÉP HIỆN KHÔNG =====
+
+
+    // Nếu Controller chưa truyền được sản phẩm quảng cáo
+    // thì thử lấy sản phẩm giảm cao nhất trong danh sách Home.
+    if (promotionProduct == null)
+    {
+        promotionProduct = products
+            .Where(p =>
+                p.OldPrice.HasValue &&
+                p.OldPrice.Value > 0 &&
+                p.OldPrice.Value > p.Price)
+            .OrderByDescending(p =>
+                (p.OldPrice!.Value - p.Price)
+                / p.OldPrice.Value)
+            .FirstOrDefault();
+    }
+
+
+    decimal promotionDiscountPercent = 0;
+
+    if (promotionProduct != null &&
+        promotionProduct.OldPrice.HasValue &&
+        promotionProduct.OldPrice.Value > 0 &&
+        promotionProduct.OldPrice.Value > promotionProduct.Price)
+    {
+        promotionDiscountPercent =
+            Math.Round(
+                (1 -
+                 promotionProduct.Price /
+                 promotionProduct.OldPrice.Value)
+                * 100
+            );
+    }
 }
 
-<div class="container home-page-v2">
-    <section class="home-welcome">
-        <div class="home-welcome-content">
-            <span class="home-eyebrow">MiniSmartstore</span>
 
-            <h1>Chào mừng đến với MiniSmartstore</h1>
 
-            <p>
-                Website thương mại điện tử mini được xây dựng bằng ASP.NET Core MVC.
-                Khách hàng có thể xem sản phẩm, thêm vào giỏ hàng, lưu yêu thích, so sánh và đặt hàng.
-            </p>
+@* =========================
+   POPUP QUẢNG CÁO
+   ========================= *@
+
+@if (showPromotionPopup &&
+     promotionProduct != null &&
+     promotionDiscountPercent > 0)
+{
+    var promotionImage =
+        string.IsNullOrWhiteSpace(promotionProduct.ImageUrl)
+            ? "/images/products/no-image.jpg"
+            : promotionProduct.ImageUrl;
+
+
+    <div id="homePromotionPopup"
+         class="home-promotion-overlay show">
+
+        <div class="home-promotion-popup">
+
+            <button type="button"
+                    id="closeHomePromotion"
+                    class="home-promotion-close"
+                    aria-label="Đóng quảng cáo">
+                ×
+            </button>
+
+
+            <div class="home-promotion-badge">
+                FLASH SALE
+            </div>
+
+
+            <div class="home-promotion-brand">
+
+                <span class="home-promotion-logo">
+                    M
+                </span>
+
+                <strong>
+                    MiniSmartstore
+                </strong>
+
+            </div>
+
+
+            <div class="home-promotion-title">
+                DEAL SIÊU HOT
+            </div>
+
+
+            <div class="home-promotion-discount-text">
+                GIẢM ĐẾN
+            </div>
+
+
+            <div class="home-promotion-percent">
+                @promotionDiscountPercent.ToString("0")%
+            </div>
+
+
+            <div class="home-promotion-product-image">
+
+                <img src="@promotionImage"
+                     alt="@promotionProduct.Name"
+                     onerror="this.src='/images/products/no-image.jpg'" />
+
+            </div>
+
+
+            <div class="home-promotion-product-name">
+                @promotionProduct.Name
+            </div>
+
+
+            <div class="home-promotion-prices">
+
+                <span class="home-promotion-old-price">
+                    @promotionProduct.OldPrice!.Value.ToString("N0") đ
+                </span>
+
+                <strong class="home-promotion-new-price">
+                    @promotionProduct.Price.ToString("N0") đ
+                </strong>
+
+            </div>
+
+
+            <a asp-controller="Product"
+               asp-action="Details"
+               asp-route-id="@promotionProduct.Id"
+               class="home-promotion-buy-btn">
+
+                MUA NGAY
+
+                <span>›</span>
+
+            </a>
+
         </div>
+
+    </div>
+}
+
+
+
+<div class="container home-page-v2">
+
+
+    <!-- =========================
+         SLIDER BANNER TRANG CHỦ
+         ========================= -->
+
+    <section class="home-hero-slider"
+             id="homeHeroSlider"
+             aria-label="Banner khuyến mãi MiniSmartstore">
+
+
+        <div class="home-hero-track"
+             id="homeHeroTrack">
+
+
+            <!-- SLIDE 1: OPPO -->
+
+            <div class="home-hero-slide">
+
+                <img src="/images/banners/banner-oppo.png"
+                     alt="OPPO Reno15 F 5G"
+                     fetchpriority="high"
+                     draggable="false" />
+
+            </div>
+
+
+            <!-- SLIDE 2: TỰU TRƯỜNG -->
+
+            <div class="home-hero-slide">
+
+                <img src="/images/banners/banner-back-to-school.png"
+                     alt="Tựu trường công nghệ - Sale đến 50%"
+                     loading="lazy"
+                     draggable="false" />
+
+            </div>
+
+
+            <!-- SLIDE 3: GAMING -->
+
+            <div class="home-hero-slide">
+
+                <img src="/images/banners/banner-gaming.png"
+                     alt="Gaming và làm việc - Nâng cấp setup"
+                     loading="lazy"
+                     draggable="false" />
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- MŨI TÊN TRÁI -->
+
+        <button type="button"
+                class="home-slider-arrow home-slider-prev"
+                id="homeSliderPrev"
+                aria-label="Xem banner trước">
+
+            ‹
+
+        </button>
+
+
+
+        <!-- MŨI TÊN PHẢI -->
+
+        <button type="button"
+                class="home-slider-arrow home-slider-next"
+                id="homeSliderNext"
+                aria-label="Xem banner tiếp theo">
+
+            ›
+
+        </button>
+
+
+
+        <!-- CHẤM ĐIỀU HƯỚNG -->
+
+        <div class="home-slider-dots">
+
+
+            <button type="button"
+                    class="home-slider-dot active"
+                    data-slide="0"
+                    aria-label="Banner OPPO"
+                    aria-current="true">
+            </button>
+
+
+            <button type="button"
+                    class="home-slider-dot"
+                    data-slide="1"
+                    aria-label="Banner Tựu trường">
+            </button>
+
+
+            <button type="button"
+                    class="home-slider-dot"
+                    data-slide="2"
+                    aria-label="Banner Gaming">
+            </button>
+
+
+        </div>
+
+
     </section>
 
+
+
+    <!-- =========================
+         DANH MỤC SẢN PHẨM
+         ========================= -->
+
     <section class="home-category-section">
+
         <div class="home-section-heading">
-            <h2>Danh mục sản phẩm</h2>
+
+            <h2>
+                Danh mục sản phẩm
+            </h2>
+
             <span></span>
+
         </div>
 
+
         <div class="home-category-grid">
+
             @foreach (var item in categories)
             {
                 <a asp-controller="Product"
                    asp-action="Index"
                    asp-route-categoryId="@item.Id"
                    class="home-category-card">
+
+
                     <div class="home-category-image">
-                        <img src="@GetCategoryImage(item.Name)"
-                             alt="@item.Name"
-                             onerror="this.src='/images/products/no-image.jpg'" />
+
+                            <img src="@(string.IsNullOrWhiteSpace(item.ImageUrl)
+                                ? "/images/products/no-image.jpg"
+                                : item.ImageUrl)"
+                                 alt="@item.Name"
+                                 onerror="this.src='/images/products/no-image.jpg'" />
                     </div>
 
-                    <h5>@item.Name</h5>
+
+                    <h5>
+                        @item.Name
+                    </h5>
+
                 </a>
             }
+
         </div>
+
     </section>
 
+
+
+    <!-- =========================
+         SẢN PHẨM NỔI BẬT
+         ========================= -->
+
     <section class="home-featured-section">
+
         <div class="home-section-heading center">
+
             <span></span>
-            <h2>Sản phẩm nổi bật</h2>
+
+            <h2>
+                Sản phẩm nổi bật
+            </h2>
+
             <span></span>
+
         </div>
+
 
         @if (products.Any())
         {
             <div class="home-product-grid">
+
                 @foreach (var item in products)
                 {
-                    var imageUrl = string.IsNullOrWhiteSpace(item.ImageUrl)
-                        ? "/images/products/no-image.jpg"
-                        : item.ImageUrl;
+                    var imageUrl =
+                        string.IsNullOrWhiteSpace(item.ImageUrl)
+                            ? "/images/products/no-image.jpg"
+                            : item.ImageUrl;
 
-                    var hasDiscount = item.OldPrice != null && item.OldPrice > item.Price;
-                    var discountPercent = hasDiscount
-                        ? Math.Round((1 - item.Price / item.OldPrice!.Value) * 100)
-                        : 0;
+
+                    var hasDiscount =
+                        item.OldPrice.HasValue &&
+                        item.OldPrice.Value > item.Price;
+
+
+                    var discountPercent =
+                        hasDiscount
+                            ? Math.Round(
+                                (1 -
+                                 item.Price /
+                                 item.OldPrice!.Value)
+                                * 100
+                            )
+                            : 0;
+
 
                     <article class="home-product-card">
+
+
+                        <!-- ẢNH SẢN PHẨM -->
+
                         <div class="home-product-image-wrap">
+
                             <a asp-controller="Product"
                                asp-action="Details"
                                asp-route-id="@item.Id"
                                class="home-product-image-link">
+
                                 <img src="@imageUrl"
                                      alt="@item.Name"
                                      onerror="this.src='/images/products/no-image.jpg'" />
+
                             </a>
 
-                            @if (hasDiscount && discountPercent > 0)
+
+
+                            @if (hasDiscount &&
+                                 discountPercent > 0)
                             {
-                                <span class="home-discount-badge">-@discountPercent%</span>
+                                <span class="home-discount-badge">
+                                    -@discountPercent%
+                                </span>
                             }
+
+
 
                             @if (item.IsFeatured)
                             {
-                                <span class="home-featured-badge">Nổi bật</span>
+                                <span class="home-featured-badge">
+                                    Nổi bật
+                                </span>
                             }
+
                         </div>
 
+
+
+                        <!-- THÔNG TIN CƠ BẢN -->
+
                         <div class="home-product-body">
+
                             <div class="home-product-category">
+
                                 @(item.Category?.Name ?? "Sản phẩm")
+
                             </div>
+
 
                             <a asp-controller="Product"
                                asp-action="Details"
                                asp-route-id="@item.Id"
                                class="home-product-name">
+
                                 @item.Name
+
                             </a>
 
+
                             <p class="home-product-description">
+
                                 @(string.IsNullOrWhiteSpace(item.Description)
                                     ? "Sản phẩm đang được cập nhật mô tả."
                                     : item.Description)
+
                             </p>
 
+
                             <div class="home-delivery-line">
+
                                 <span></span>
-                                Giao hàng @(string.IsNullOrWhiteSpace(item.DeliveryTime) ? "3 - 5 ngày" : item.DeliveryTime)
+
+                                Giao hàng
+                                @(string.IsNullOrWhiteSpace(item.DeliveryTime)
+                                    ? "3 - 5 ngày"
+                                    : item.DeliveryTime)
+
                             </div>
 
+
                             <div class="home-product-price">
-                                <strong>@item.Price.ToString("N0") đ</strong>
+
+                                <strong>
+                                    @item.Price.ToString("N0") đ
+                                </strong>
+
 
                                 @if (hasDiscount)
                                 {
-                                    <small>Giá cũ: @item.OldPrice!.Value.ToString("N0") đ</small>
+                                    <small>
+
+                                        Giá cũ:
+                                        @item.OldPrice!.Value.ToString("N0") đ
+
+                                    </small>
                                 }
+
                             </div>
+
                         </div>
 
+
+
+                        <!-- PHẦN HIỆN KHI HOVER -->
+
                         <div class="home-product-hover-preview">
+
                             <div class="home-preview-top">
+
                                 <div>
+
                                     <div class="home-product-category">
+
                                         @(item.Category?.Name ?? "Sản phẩm")
+
                                     </div>
+
 
                                     <a asp-controller="Product"
                                        asp-action="Details"
                                        asp-route-id="@item.Id"
                                        class="home-product-name">
+
                                         @item.Name
+
                                     </a>
+
                                 </div>
 
+
                                 <strong class="home-preview-price">
+
                                     @item.Price.ToString("N0") đ
+
                                 </strong>
+
                             </div>
 
+
                             <p class="home-preview-description">
+
                                 @(string.IsNullOrWhiteSpace(item.Description)
                                     ? "Xem chi tiết để biết thêm thông tin sản phẩm."
                                     : item.Description)
+
                             </p>
 
+
+
+                            <!-- ACTION -->
+
                             <div class="home-preview-actions">
+
+
+                                <!-- THÊM GIỎ -->
+
                                 <button type="button"
                                         class="home-action-btn primary js-drawer-add-cart"
                                         data-product-id="@item.Id"
                                         title="Thêm vào giỏ hàng">
+
                                     🛒
+
                                 </button>
+
+
+
+                                <!-- YÊU THÍCH -->
 
                                 <button type="button"
                                         class="home-action-btn js-add-wishlist"
                                         data-product-id="@item.Id"
                                         title="Thêm vào yêu thích">
+
                                     ♡
+
                                 </button>
+
+
+
+                                <!-- SO SÁNH -->
 
                                 <button type="button"
                                         class="home-action-btn js-add-compare"
                                         data-product-id="@item.Id"
                                         title="Thêm vào so sánh">
+
                                     ⇄
+
                                 </button>
+
+
+
+                                <!-- CHI TIẾT -->
 
                                 <a asp-controller="Product"
                                    asp-action="Details"
                                    asp-route-id="@item.Id"
                                    class="home-action-btn"
                                    title="Xem chi tiết">
+
                                     i
+
                                 </a>
+
                             </div>
+
                         </div>
+
                     </article>
                 }
+
             </div>
         }
         else
         {
             <div class="home-empty-product-box">
-                <h4>Chưa có sản phẩm nổi bật</h4>
-                <p>Vui lòng thêm sản phẩm trong trang quản trị.</p>
+
+                <h4>
+                    Chưa có sản phẩm nổi bật
+                </h4>
+
+                <p>
+                    Vui lòng thêm sản phẩm trong trang quản trị.
+                </p>
+
             </div>
         }
+
     </section>
+
 </div>
 
-@functions {
-    private string GetCategoryImage(string categoryName)
-    {
-        return categoryName switch
-        {
-            "Điện thoại" => "/images/products/iphone.jpg",
-            "Laptop" => "/images/products/macbook.jpg",
-            "Phụ kiện" => "/images/products/headphone.jpg",
-            "Thời trang" => "/images/products/no-image.jpg",
-            "Thể thao" => "/images/products/no-image.jpg",
-            _ => "/images/products/no-image.jpg"
-        };
-    }
-}
+
+
+
+
+@* ===== LƯU Ý: JAVASCRIPT RIÊNG CHO TRANG HOME ===== *@
+<script src="~/js/home.js"
+        asp-append-version="true"></script>
+@* ===== KẾT THÚC JAVASCRIPT RIÊNG CHO TRANG HOME ===== *@
